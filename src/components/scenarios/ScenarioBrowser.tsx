@@ -105,7 +105,7 @@ export function ScenarioBrowser({
           <EmptyState title="لا توجد نتائج" body="جرّب تغيير البحث أو عوامل التصفية." />
         </div>
       ) : (
-        <div className="flex-1 overflow-auto max-h-[calc(100vh-320px)] max-lg:max-h-[480px] p-2 space-y-1">
+        <div className="flex-1 overflow-auto max-h-[calc(100vh-150px)] max-lg:max-h-[480px] p-2 space-y-1">
           {scenarios.map((scenario) => {
             const workflow = workflows.find((item) => item.scenario_id === scenario.scenario_id)
             const execution = executions.find((item) => item.scenario_id === scenario.scenario_id)

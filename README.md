@@ -48,6 +48,8 @@ where id = '<verified-auth-user-uuid>';
 
 Use `role = 'tester'` for normal users. Do not grant roles based on email/provider metadata. A trusted operator must promote at least one account to admin before creating a round.
 
+Admins can select issue reports on the Issues page and export the selection as an Excel workbook or a print-ready PDF. PDF export opens the browser print dialog; choose **Save as PDF** to download it.
+
 ## Development checks
 
 ```powershell

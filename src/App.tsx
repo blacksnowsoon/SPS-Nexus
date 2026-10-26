@@ -1,99 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { completionPercent, countExecutions, filterScenarios, isEditableWorkflow, nextWorkflowStatus } from './lib/checklist'
+import { countExecutions, filterScenarios, isEditableWorkflow } from './lib/checklist'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 import type {
   ExecutionStatus,
+  IssueExecutionNote,
+  IssueReporter,
   Profile,
   Project,
   Round,
   RoundScenario,
   RoundStatus,
   RoundWorkflow,
-  ScenarioExecution,
   ScenarioCatalogItem,
+  ScenarioExecution,
   ScenarioIssue,
   WorkflowStatus,
 } from './types'
+import { pageDescription, pageTitle, roundLabels, type Page } from './components/constants'
+import { ConfigScreen } from './components/gate/ConfigScreen'
+import { ProfileGateScreen } from './components/gate/ProfileGateScreen'
+import { SignInScreen } from './components/gate/SignInScreen'
+import { Topbar } from './components/layout/Topbar'
+import { Sidebar } from './components/layout/Sidebar'
+import { OverviewPage } from './components/pages/OverviewPage'
+import { ScenariosPage } from './components/pages/ScenariosPage'
+import { IssuesPage } from './components/pages/IssuesPage'
+import { RoundsPage } from './components/pages/RoundsPage'
 import './App.css'
-
-type Page = 'overview' | 'scenarios' | 'issues' | 'rounds'
-
-const statusLabels: Record<ExecutionStatus, string> = {
-  not_tested: 'لم يُختبر',
-  passed: 'ناجح',
-  failed: 'فشل',
-  not_applicable: 'لا ينطبق',
-}
-
-const workflowLabels: Record<WorkflowStatus, string> = {
-  open: 'مفتوح',
-  has_issues: 'لديه مشكلة',
-  in_progress: 'قيد المعالجة',
-  closed: 'مغلق',
-}
-
-const roundLabels: Record<RoundStatus, string> = {
-  planned: 'مخطط',
-  active: 'نشط',
-  completed: 'مكتمل',
-  archived: 'مؤرشف',
-}
-
-const statusClass: Record<ExecutionStatus, string> = {
-  not_tested: 'muted',
-  passed: 'success',
-  failed: 'danger',
-  not_applicable: 'neutral',
-}
-
-const workflowClass: Record<WorkflowStatus, string> = {
-  open: 'success',
-  has_issues: 'danger',
-  in_progress: 'warning',
-  closed: 'muted',
-}
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium' }).format(new Date(value))
-}
-
-function ConfigScreen() {
-  return (
-    <main className="gate-page">
-      <section className="gate-card">
-        <div className="brand-mark">S</div>
-        <p className="eyebrow">SPS NEXUS · UAT</p>
-        <h1>إعداد الاتصال بقاعدة البيانات</h1>
-        <p className="muted-copy">
-          أضف رابط Supabase والمفتاح العام في ملف <code>.env</code> لتشغيل تسجيل الدخول والبيانات المشتركة.
-        </p>
-        <pre>VITE_SUPABASE_URL=https://your-project.supabase.co{'\n'}VITE_SUPABASE_ANON_KEY=your-anon-key</pre>
-        <p className="security-note">لا تضع مفتاح service role أو سر Google OAuth في تطبيق المتصفح.</p>
-      </section>
-    </main>
-  )
-}
-
-function SignInScreen({ onSignIn, busy, error }: { onSignIn: () => void; busy: boolean; error: string }) {
-  return (
-    <main className="gate-page">
-      <section className="gate-card sign-in-card">
-        <div className="brand-mark">S</div>
-        <p className="eyebrow">SPS NEXUS · UAT WORKSPACE</p>
-        <h1>اختبروا معًا، وتابعوا التقدم بوضوح.</h1>
-        <p className="muted-copy">مساحة مشتركة لتنفيذ سيناريوهات القبول وإدارة الملاحظات بين فريق الاختبار والتطوير.</p>
-        <button className="button button-primary google-button" onClick={onSignIn} disabled={busy}>
-          <span className="google-g" aria-hidden="true">G</span>
-          {busy ? 'جارٍ التحويل إلى Google…' : 'المتابعة باستخدام Google'}
-        </button>
-        {error && <p className="inline-error" role="alert">{error}</p>}
-        <p className="security-note">يتطلب الدخول موافقة مسؤول النظام بعد تسجيل الدخول لأول مرة.</p>
-      </section>
-    </main>
-  )
-}
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -111,6 +46,8 @@ function App() {
   const [workflows, setWorkflows] = useState<RoundWorkflow[]>([])
   const [executions, setExecutions] = useState<ScenarioExecution[]>([])
   const [issues, setIssues] = useState<ScenarioIssue[]>([])
+  const [issueReporters, setIssueReporters] = useState<IssueReporter[]>([])
+  const [issueExecutionNotes, setIssueExecutionNotes] = useState<IssueExecutionNote[]>([])
   const [workspaceLoading, setWorkspaceLoading] = useState(true)
   const [error, setError] = useState('')
   const [page, setPage] = useState<Page>('overview')
@@ -186,6 +123,8 @@ function App() {
         setWorkflows([])
         setExecutions([])
         setIssues([])
+        setIssueReporters([])
+        setIssueExecutionNotes([])
       }
     })
 
@@ -197,19 +136,31 @@ function App() {
 
   const loadRoundContent = useCallback(async (roundId: string) => {
     if (!supabase || !roundId) return
-    const [scenarioResult, workflowResult, executionResult, issueResult] = await Promise.all([
+    const [scenarioResult, workflowResult, executionResult, issueResult, reporterResult, executionNotesResult] = await Promise.all([
       supabase.from('round_scenarios').select('*').eq('round_id', roundId).is('removed_at', null).order('sort_order'),
       supabase.from('round_scenario_workflows').select('*').eq('round_id', roundId),
       supabase.from('scenario_executions').select('*').eq('round_id', roundId),
       supabase.from('scenario_issues').select('*').eq('round_id', roundId).order('created_at', { ascending: false }),
+      supabase.rpc('issue_reporters', { p_round_id: roundId }),
+      isAdmin
+        ? supabase.rpc('issue_execution_notes', { p_round_id: roundId })
+        : Promise.resolve({ data: [] as IssueExecutionNote[], error: null }),
     ])
-    const queryError = scenarioResult.error ?? workflowResult.error ?? executionResult.error ?? issueResult.error
+    const queryError =
+      scenarioResult.error ??
+      workflowResult.error ??
+      executionResult.error ??
+      issueResult.error ??
+      reporterResult.error ??
+      executionNotesResult.error
     if (queryError) {
       setError(`تعذر تحميل بيانات الجولة: ${queryError.message}`)
       setScenarios([])
       setWorkflows([])
       setExecutions([])
       setIssues([])
+      setIssueReporters([])
+      setIssueExecutionNotes([])
       setWorkspaceLoading(false)
       return
     }
@@ -217,8 +168,10 @@ function App() {
     setWorkflows(workflowResult.data ?? [])
     setExecutions(executionResult.data ?? [])
     setIssues(issueResult.data ?? [])
+    setIssueReporters(reporterResult.data ?? [])
+    setIssueExecutionNotes(executionNotesResult.data ?? [])
     setWorkspaceLoading(false)
-  }, [])
+  }, [isAdmin])
 
   const loadWorkspace = useCallback(async () => {
     if (!supabase || !user || profile?.status !== 'active') return
@@ -348,7 +301,7 @@ function App() {
       setError(`تعذر تحديث حالة المشكلة: ${transitionError.message}`)
     } else {
       await loadRoundContent(selectedRound.id)
-      setSuccessMessage(`تم تحديث الحالة إلى «${workflowLabels[target]}».`)
+      setSuccessMessage('تم تحديث الحالة بنجاح.')
     }
     setBusyAction('')
   }
@@ -441,33 +394,21 @@ function App() {
   }
 
   if (!hasSupabaseConfig) return <ConfigScreen />
-  if (authLoading || (session && profileLoading)) return <main className="gate-page"><div className="loading-card">جارٍ تحميل مساحة العمل…</div></main>
-  if (!session) return <SignInScreen onSignIn={() => void signIn()} busy={signingIn} error={authError} />
-  if (profileError) {
+  if (authLoading || (session && profileLoading)) {
     return (
-      <main className="gate-page">
-        <section className="gate-card">
-          <div className="brand-mark">S</div>
-          <p className="eyebrow">تعذر تهيئة الحساب</p>
-          <h1>لا يمكن فتح مساحة العمل</h1>
-          <p className="inline-error" role="alert">{profileError}</p>
-          <button className="button button-secondary" onClick={() => void signOut()}>تسجيل الخروج</button>
-        </section>
+      <main className="min-h-screen grid place-items-center p-6 bg-slate-50/80">
+        <div className="w-full max-w-[440px] bg-white border border-slate-200/90 rounded-2xl shadow-xl p-8 text-center text-xs text-slate-500 font-medium flex items-center justify-center gap-2">
+          <span className="animate-spin text-blue-600">↻</span> جارٍ تحميل مساحة العمل…
+        </div>
       </main>
     )
   }
+  if (!session) return <SignInScreen onSignIn={() => void signIn()} busy={signingIn} error={authError} />
+  if (profileError) {
+    return <ProfileGateScreen type="error" errorMessage={profileError} onSignOut={() => void signOut()} />
+  }
   if (profile?.status !== 'active') {
-    return (
-      <main className="gate-page">
-        <section className="gate-card">
-          <div className="brand-mark">S</div>
-          <span className="status-badge warning">بانتظار التفعيل</span>
-          <h1>حسابك قيد المراجعة</h1>
-          <p className="muted-copy">تم تسجيل الدخول بنجاح. سيظهر المشروع بعد تفعيل حسابك يدويًا من مسؤول النظام.</p>
-          <button className="button button-secondary" onClick={() => void signOut()}>تسجيل الخروج</button>
-        </section>
-      </main>
-    )
+    return <ProfileGateScreen type="pending" onSignOut={() => void signOut()} />
   }
 
   const ownExecutions = executions.filter((execution) => execution.user_id === user?.id)
@@ -486,76 +427,128 @@ function App() {
   const selectedIssues = issues.filter((issue) => issue.scenario_id === selectedScenarioId)
 
   return (
-    <div className="app-shell" dir="rtl">
-      <header className="topbar">
-        <div className="topbar-brand">
-          <div className="brand-mark small">S</div>
-          <div><strong>SPS Nexus</strong><span>UAT Workspace</span></div>
-        </div>
-        <div className="topbar-actions">
-          <div className="round-picker">
-            <span>الجولة</span>
-            <select aria-label="اختيار الجولة" value={selectedRoundId} onChange={(event) => { setWorkspaceLoading(Boolean(event.target.value)); setSelectedRoundId(event.target.value); setSelectedScenarioId(''); setEditingScenario(false) }}>
-              <option value="">لا توجد جولات</option>
-              {rounds.map((round) => <option key={round.id} value={round.id}>{round.name} · {roundLabels[round.status]}</option>)}
-            </select>
-          </div>
-          <div className="user-chip">
-            {profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : <span className="avatar-fallback">{(profile?.display_name || profile?.email || 'U').slice(0, 1).toUpperCase()}</span>}
-            <span>{profile?.display_name || profile?.email}</span>
-            <button className="text-button" onClick={() => void signOut()}>خروج</button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50/60 text-slate-800" dir="rtl">
+      <Topbar
+        rounds={rounds}
+        selectedRoundId={selectedRoundId}
+        onSelectRoundId={(roundId) => {
+          setWorkspaceLoading(Boolean(roundId))
+          setSelectedRoundId(roundId)
+          setSelectedScenarioId('')
+          setEditingScenario(false)
+        }}
+        profile={profile}
+        onSignOut={() => void signOut()}
+      />
 
-      <div className="workspace">
-        <aside className="sidebar">
-          <div className="project-card">
-            <span className="project-icon">S</span>
-            <div><small>المشروع</small><strong>{project?.name ?? 'SPS Nexus'}</strong></div>
-            <span className="live-dot" title="مساحة مشتركة" />
-          </div>
-          <p className="nav-label">مساحة العمل</p>
-          <nav className="side-nav" aria-label="التنقل الرئيسي">
-            <NavButton active={page === 'overview'} onClick={() => setPage('overview')} icon="▦">نظرة عامة</NavButton>
-            <NavButton active={page === 'scenarios'} onClick={() => setPage('scenarios')} icon="☷">السيناريوهات <span className="nav-count">{scenarios.length}</span></NavButton>
-            <NavButton active={page === 'issues'} onClick={() => setPage('issues')} icon="⚑">المشكلات <span className="nav-count">{issueWorkflows.length}</span></NavButton>
-            <NavButton active={page === 'rounds'} onClick={() => setPage('rounds')} icon="◷">الجولات</NavButton>
-          </nav>
-          <div className="sidebar-bottom">
-            <div className="help-card"><span>↗</span><strong>تعملون على نفس السيناريوهات</strong><p>نتائج كل مختبِر خاصة به، وحالة المشكلة مشتركة مع الفريق.</p></div>
-            <div className="side-user">
-              <span className="avatar-fallback">{(profile?.display_name || 'U').slice(0, 1)}</span>
-              <div><strong>{profile?.display_name || 'مستخدم'}</strong><small>{isAdmin ? 'مسؤول النظام' : 'مختبِر'}</small></div>
-            </div>
-          </div>
-        </aside>
+      <div className="grid grid-cols-[244px_minmax(0,1fr)] max-lg:grid-cols-[210px_minmax(0,1fr)] max-md:block max-md:pb-16 min-h-[calc(100vh-72px)]">
+        <Sidebar
+          project={project}
+          page={page}
+          onPageChange={setPage}
+          scenarioCount={scenarios.length}
+          issueCount={issueWorkflows.length}
+          profile={profile}
+          isAdmin={isAdmin}
+        />
 
-        <main className="main-content">
-          <div className="content-heading">
+        <main className="max-w-[1540px] w-full mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8 lg:pb-16">
+          <div className="flex items-start justify-between gap-4 mb-6">
             <div>
-              <p className="eyebrow">{project?.name ?? 'SPS Nexus'}{selectedRound ? ` / ${selectedRound.name}` : ''}</p>
-              <h1>{pageTitle(page)}</h1>
-              <p className="muted-copy">{pageDescription(page, selectedRound, isAdmin)}</p>
+              <p className="text-[11px] font-bold text-slate-400 tracking-wider uppercase m-0">
+                {project?.name ?? 'SPS Nexus'}
+                {selectedRound ? ` / ${selectedRound.name}` : ''}
+              </p>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight my-1">
+                {pageTitle(page)}
+              </h1>
+              <p className="text-xs text-slate-500 max-w-xl">
+                {pageDescription(page, selectedRound, isAdmin)}
+              </p>
             </div>
-            <div className="heading-actions">
-              {selectedRound && <span className={`status-badge ${selectedRound.status === 'active' ? 'success' : 'muted'}`}>{roundLabels[selectedRound.status]}</span>}
-              <button className="button button-secondary" onClick={() => void refreshRound()} disabled={workspaceLoading}>
+            <div className="flex items-center gap-2">
+              {selectedRound && (
+                <span
+                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                    selectedRound.status === 'active'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                      : 'bg-slate-100 text-slate-600 border border-slate-200/60'
+                  }`}
+                >
+                  {roundLabels[selectedRound.status]}
+                </span>
+              )}
+              <button
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-xl text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
+                onClick={() => void refreshRound()}
+                disabled={workspaceLoading}
+              >
                 <span aria-hidden="true">↻</span> تحديث
               </button>
             </div>
           </div>
 
-          {error && <div className="alert alert-error" role="alert"><span>!</span>{error}<button onClick={() => setError('')} aria-label="إغلاق">×</button></div>}
-          {successMessage && <div className="alert alert-success" role="status"><span>✓</span>{successMessage}<button onClick={() => setSuccessMessage('')} aria-label="إغلاق">×</button></div>}
-          {workspaceLoading && <div className="loading-inline">جارٍ تحميل بيانات الجولة…</div>}
+          {error && (
+            <div
+              className="flex items-center gap-2.5 text-xs text-rose-700 bg-rose-50 border border-rose-200/80 rounded-xl p-3 mb-4 shadow-xs"
+              role="alert"
+            >
+              <span className="w-4 h-4 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center text-[10px] shrink-0">
+                !
+              </span>
+              <span className="flex-1">{error}</span>
+              <button
+                onClick={() => setError('')}
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold px-1"
+                aria-label="إغلاق"
+              >
+                ×
+              </button>
+            </div>
+          )}
+          {successMessage && (
+            <div
+              className="flex items-center gap-2.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/80 rounded-xl p-3 mb-4 shadow-xs"
+              role="status"
+            >
+              <span className="w-4 h-4 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center text-[10px] shrink-0">
+                ✓
+              </span>
+              <span className="flex-1">{successMessage}</span>
+              <button
+                onClick={() => setSuccessMessage('')}
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold px-1"
+                aria-label="إغلاق"
+              >
+                ×
+              </button>
+            </div>
+          )}
+          {workspaceLoading && (
+            <div className="text-xs text-slate-500 bg-white border border-slate-200/80 rounded-xl p-3 mb-4 shadow-xs flex items-center justify-center gap-2">
+              <span className="animate-spin text-blue-600">↻</span> جارٍ تحميل بيانات الجولة…
+            </div>
+          )}
 
           {!selectedRound && !workspaceLoading && (
-            <section className="empty-workspace">
-              <div className="empty-icon">◷</div>
-              <h2>لم تبدأ أي جولة بعد</h2>
-              <p>{isAdmin ? 'أنشئ الجولة الأولى لنسخ السيناريوهات وإتاحتها لفريق الاختبار.' : 'سيظهر هنا العمل بمجرد أن ينشئ المسؤول جولة ويفعّلها.'}</p>
-              {isAdmin && <button className="button button-primary" onClick={() => setPage('rounds')}>إنشاء جولة</button>}
+            <section className="bg-white border border-slate-200/90 rounded-2xl p-10 sm:p-14 text-center shadow-xs mt-6">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 font-bold text-xl flex items-center justify-center mx-auto mb-3">
+                ◷
+              </div>
+              <h2 className="text-base font-bold text-slate-800 mb-1">لم تبدأ أي جولة بعد</h2>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mb-5 leading-relaxed">
+                {isAdmin
+                  ? 'أنشئ الجولة الأولى لنسخ السيناريوهات وإتاحتها لفريق الاختبار.'
+                  : 'سيظهر هنا العمل بمجرد أن ينشئ المسؤول جولة ويفعّلها.'}
+              </p>
+              {isAdmin && (
+                <button
+                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs"
+                  onClick={() => setPage('rounds')}
+                >
+                  إنشاء جولة
+                </button>
+              )}
             </section>
           )}
 
@@ -569,97 +562,88 @@ function App() {
               round={selectedRound}
               onOpenScenarios={() => setPage('scenarios')}
               onOpenIssues={() => setPage('issues')}
-              onSelectScenario={(scenarioId) => { selectScenario(scenarioId); setPage('scenarios') }}
+              onSelectScenario={(scenarioId) => {
+                selectScenario(scenarioId)
+                setPage('scenarios')
+              }}
               scenarios={scenarios}
               executions={ownExecutions}
             />
           )}
 
           {selectedRound && page === 'scenarios' && (
-            <div className="scenario-layout">
-              <section className="scenario-browser">
-                <div className="filter-row">
-                  <label className="search-field"><span aria-hidden="true">⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث في السيناريوهات والخطوات…" /></label>
-                  <select aria-label="تصفية حسب النظام" value={moduleFilter} onChange={(event) => setModuleFilter(event.target.value)}>
-                    <option value="">كل الأنظمة</option>{modules.map((module) => <option key={module} value={module}>{module}</option>)}
-                  </select>
-                </div>
-                <div className="filter-row secondary-filters">
-                  <select aria-label="تصفية حالة السيناريو" value={lifecycleFilter} onChange={(event) => setLifecycleFilter(event.target.value)}>
-                    <option value="">كل حالات المشكلة</option>
-                    {Object.entries(workflowLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                  </select>
-                  <select aria-label="تصفية نتيجة الاختبار" value={executionFilter} onChange={(event) => setExecutionFilter(event.target.value)}>
-                    <option value="">كل نتائجك</option>
-                    {Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                  </select>
-                  <span className="results-count">{visibleScenarios.length} سيناريو</span>
-                </div>
-                {visibleScenarios.length === 0 ? <EmptyState title="لا توجد نتائج" body="جرّب تغيير البحث أو عوامل التصفية." /> : (
-                  <div className="scenario-list">
-                    {visibleScenarios.map((scenario) => {
-                      const workflow = workflows.find((item) => item.scenario_id === scenario.scenario_id)
-                      const execution = ownExecutions.find((item) => item.scenario_id === scenario.scenario_id)
-                      return (
-                        <button
-                          className={`scenario-row ${selectedScenarioId === scenario.scenario_id ? 'selected' : ''}`}
-                          key={scenario.scenario_id}
-                          onClick={() => selectScenario(scenario.scenario_id)}
-                        >
-                          <span className={`scenario-number ${workflow?.status === 'has_issues' ? 'issue-number' : ''}`}>{scenario.source_number}</span>
-                          <span className="scenario-row-main"><strong>{scenario.title}</strong><small>{scenario.module} <span>·</span> {scenario.section}</small></span>
-                          <span className={`status-badge compact ${workflowClass[workflow?.status ?? 'open']}`}>{workflowLabels[workflow?.status ?? 'open']}</span>
-                          <span className={`status-dot ${statusClass[execution?.status ?? 'not_tested']}`} title={statusLabels[execution?.status ?? 'not_tested']} />
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </section>
-              <ScenarioDetail
-                scenario={selectedScenario}
-                key={selectedScenario?.scenario_id ?? 'empty'}
-                workflow={currentWorkflow}
-                execution={currentExecution}
-                issues={selectedIssues}
-                isAdmin={isAdmin}
-                canExecute={canExecute}
-                busyAction={busyAction}
-                issueDraft={issueDraft}
-                onIssueDraftChange={setIssueDraft}
-                onSaveExecution={(status, notes) => selectedScenario && void saveExecution(selectedScenario, status, notes)}
-                onReportIssue={() => void reportIssue()}
-                onTransition={(status) => currentWorkflow && void transitionWorkflow(currentWorkflow, status)}
-                editing={editingScenario}
-                editValues={{ title: editTitle, description: editDescription, steps: editSteps, expected: editExpected }}
-                onEditValue={(field, value) => {
-                  if (field === 'title') setEditTitle(value)
-                  if (field === 'description') setEditDescription(value)
-                  if (field === 'steps') setEditSteps(value)
-                  if (field === 'expected') setEditExpected(value)
-                }}
-                onStartEditing={() => {
-                  if (!selectedScenario) return
-                  setEditTitle(selectedScenario.title)
-                  setEditDescription(selectedScenario.description)
-                  setEditSteps(selectedScenario.steps.join('\n'))
-                  setEditExpected(selectedScenario.expected.join('\n'))
-                  setEditingScenario(true)
-                }}
-                onCancelEditing={() => setEditingScenario(false)}
-                onSaveScenario={() => void saveScenario()}
-              />
-            </div>
+            <ScenariosPage
+              scenarios={visibleScenarios}
+              workflows={workflows}
+              ownExecutions={ownExecutions}
+              selectedScenarioId={selectedScenarioId}
+              onSelectScenario={selectScenario}
+              search={search}
+              onSearchChange={setSearch}
+              moduleFilter={moduleFilter}
+              onModuleFilterChange={setModuleFilter}
+              modules={modules}
+              lifecycleFilter={lifecycleFilter}
+              onLifecycleFilterChange={setLifecycleFilter}
+              executionFilter={executionFilter}
+              onExecutionFilterChange={setExecutionFilter}
+              selectedScenario={selectedScenario}
+              currentWorkflow={currentWorkflow}
+              currentExecution={currentExecution}
+              selectedIssues={selectedIssues}
+              isAdmin={isAdmin}
+              canExecute={canExecute}
+              busyAction={busyAction}
+              issueDraft={issueDraft}
+              onIssueDraftChange={setIssueDraft}
+              onSaveExecution={(status, notes) =>
+                selectedScenario && void saveExecution(selectedScenario, status, notes)
+              }
+              onReportIssue={() => void reportIssue()}
+              onTransition={(status) =>
+                currentWorkflow && void transitionWorkflow(currentWorkflow, status)
+              }
+              editingScenario={editingScenario}
+              editValues={{
+                title: editTitle,
+                description: editDescription,
+                steps: editSteps,
+                expected: editExpected,
+              }}
+              onEditValue={(field, value) => {
+                if (field === 'title') setEditTitle(value)
+                if (field === 'description') setEditDescription(value)
+                if (field === 'steps') setEditSteps(value)
+                if (field === 'expected') setEditExpected(value)
+              }}
+              onStartEditing={() => {
+                if (!selectedScenario) return
+                setEditTitle(selectedScenario.title)
+                setEditDescription(selectedScenario.description)
+                setEditSteps(selectedScenario.steps.join('\n'))
+                setEditExpected(selectedScenario.expected.join('\n'))
+                setEditingScenario(true)
+              }}
+              onCancelEditing={() => setEditingScenario(false)}
+              onSaveScenario={() => void saveScenario()}
+            />
           )}
 
           {selectedRound && page === 'issues' && (
             <IssuesPage
+              key={selectedRound.id}
               workflows={issueWorkflows}
               scenarios={scenarios}
               issues={issues}
+              reporters={issueReporters}
+              executionNotes={issueExecutionNotes}
+              roundName={selectedRound.name}
               isAdmin={isAdmin}
               busyAction={busyAction}
-              onOpenScenario={(scenarioId) => { selectScenario(scenarioId); setPage('scenarios') }}
+              onOpenScenario={(scenarioId) => {
+                selectScenario(scenarioId)
+                setPage('scenarios')
+              }}
               onTransition={(workflow, status) => void transitionWorkflow(workflow, status)}
             />
           )}
@@ -676,7 +660,13 @@ function App() {
               onRoundName={setRoundName}
               onRoundDescription={setRoundDescription}
               onCreateRound={(event) => void createRound(event)}
-              onSelectRound={(roundId) => { setWorkspaceLoading(true); setSelectedRoundId(roundId); setSelectedScenarioId(''); setEditingScenario(false); setPage('overview') }}
+              onSelectRound={(roundId) => {
+                setWorkspaceLoading(true)
+                setSelectedRoundId(roundId)
+                setSelectedScenarioId('')
+                setEditingScenario(false)
+                setPage('overview')
+              }}
               onUpdateStatus={(round, status) => void updateRoundStatus(round, status)}
               scenarioCatalog={scenarioCatalog}
               includeAllScenarios={includeAllScenarios}
@@ -691,249 +681,6 @@ function App() {
       </div>
     </div>
   )
-}
-
-function NavButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: string; children: ReactNode }) {
-  return <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}><span className="nav-icon">{icon}</span>{children}</button>
-}
-
-function OverviewPage({
-  counts, teamCounts, isAdmin, scenarioCount, workflowCounts, round, onOpenScenarios, onOpenIssues, onSelectScenario, scenarios, executions,
-}: {
-  counts: ReturnType<typeof countExecutions>
-  teamCounts: ReturnType<typeof countExecutions>
-  isAdmin: boolean
-  scenarioCount: number
-  workflowCounts: RoundWorkflow[]
-  round: Round
-  onOpenScenarios: () => void
-  onOpenIssues: () => void
-  onSelectScenario: (id: string) => void
-  scenarios: RoundScenario[]
-  executions: ScenarioExecution[]
-}) {
-  const failed = executions.filter((execution) => execution.status === 'failed')
-  const openIssues = workflowCounts.filter((workflow) => workflow.status !== 'closed')
-  const progress = completionPercent(counts)
-  const teamProgress = completionPercent(teamCounts)
-  return (
-    <>
-      <section className="welcome-banner">
-        <div><span className="eyebrow">مرحبًا بعودتك</span><h2>خطوة بخطوة، نرفع جودة SPS Nexus.</h2><p>{round.name} · بدأت في {formatDate(round.created_at)}</p></div>
-        <button className="button button-light" onClick={onOpenScenarios}>متابعة السيناريوهات <span>←</span></button>
-        <div className="banner-orb orb-one" /><div className="banner-orb orb-two" />
-      </section>
-      <div className="section-title-row"><div><h2>ملخص الجولة</h2><p>حالة التنفيذ والمشكلات المفتوحة في هذه الجولة.</p></div><span className="eyebrow">محدّث من Supabase</span></div>
-      <section className="stat-grid">
-        <StatCard label="إجمالي السيناريوهات" value={scenarioCount} sub="في هذه الجولة" icon="☷" tone="blue" />
-        <StatCard
-          label={isAdmin ? 'تم تنفيذها · الفريق' : 'تم تنفيذها · أنت'}
-          value={isAdmin ? teamCounts.passed + teamCounts.failed + teamCounts.not_applicable : counts.total - counts.not_tested}
-          sub={`من أصل ${isAdmin ? teamCounts.total : counts.total}`}
-          icon="✓"
-          tone="green"
-        />
-        <StatCard label="لديها مشكلات" value={openIssues.length} sub="تحتاج متابعة" icon="⚑" tone="orange" />
-        <StatCard label="نتائج فاشلة" value={isAdmin ? teamCounts.failed : failed.length} sub={isAdmin ? 'نتائج مرئية للفريق' : 'نتائجك أنت فقط'} icon="!" tone="red" />
-      </section>
-      <div className="dashboard-columns">
-        <section className="panel progress-panel">
-          <div className="panel-heading"><div><h3>{isAdmin ? 'تقدم الفريق' : 'تقدمك في الجولة'}</h3><p>{isAdmin ? 'مجموع نتائج تنفيذ المستخدمين المرئية' : 'نتائجك الشخصية في هذه الجولة'}</p></div><span className="progress-value">{isAdmin ? teamProgress : progress}%</span></div>
-          <div className="progress-track"><span className="progress-passed" style={{ width: `${isAdmin ? teamProgress : progress}%` }} /></div>
-          <div className="progress-legend"><span><i className="legend-dot success" /> ناجح <b>{isAdmin ? teamCounts.passed : counts.passed}</b></span><span><i className="legend-dot danger" /> فشل <b>{isAdmin ? teamCounts.failed : counts.failed}</b></span><span><i className="legend-dot muted" /> لم يُختبر <b>{isAdmin ? teamCounts.not_tested : counts.not_tested}</b></span></div>
-          <div className="scope-note">ملاحظة: مقياس الفريق يعدّ كل نتيجة (مستخدم × سيناريو) على حدة.</div>
-        </section>
-        <section className="panel issue-summary">
-          <div className="panel-heading"><div><h3>المشكلات النشطة</h3><p>سيناريوهات تتطلب متابعة الفريق</p></div><button className="link-button" onClick={onOpenIssues}>عرض الكل ←</button></div>
-          {openIssues.length === 0 ? <p className="empty-inline">لا توجد مشكلات مفتوحة في هذه الجولة.</p> : openIssues.slice(0, 4).map((workflow) => {
-            const scenario = scenarios.find((item) => item.scenario_id === workflow.scenario_id)
-            return <button className="issue-preview" key={workflow.scenario_id} onClick={() => onSelectScenario(workflow.scenario_id)}><span className={`status-dot ${workflowClass[workflow.status]}`} /><span><strong>{scenario?.title ?? workflow.scenario_id}</strong><small>{workflowLabels[workflow.status]}</small></span><span>←</span></button>
-          })}
-        </section>
-      </div>
-      <div className="section-title-row compact-heading"><div><h2>نتائج تنفيذك</h2><p>حالات الاختبار التي سجلتها أنت.</p></div><button className="link-button" onClick={onOpenScenarios}>عرض السيناريوهات ←</button></div>
-      <section className="panel recent-panel">
-        {executions.length === 0 ? <EmptyState title="ابدأ تنفيذ السيناريوهات" body="اختر سيناريو وسجّل نتيجة الاختبار والملاحظات الخاصة بك." /> : executions.slice(0, 5).map((execution) => {
-          const scenario = scenarios.find((item) => item.scenario_id === execution.scenario_id)
-          return <button className="recent-row" key={execution.id} onClick={() => onSelectScenario(execution.scenario_id)}><span className={`status-icon ${statusClass[execution.status]}`}>{execution.status === 'passed' ? '✓' : execution.status === 'failed' ? '!' : '–'}</span><span className="recent-main"><strong>{scenario?.title ?? execution.scenario_id}</strong><small>{scenario?.module} · {scenario?.section}</small></span><span className={`status-badge compact ${statusClass[execution.status]}`}>{statusLabels[execution.status]}</span></button>
-        })}
-      </section>
-    </>
-  )
-}
-
-function StatCard({ label, value, sub, icon, tone }: { label: string; value: number; sub: string; icon: string; tone: string }) {
-  return <article className="stat-card"><span className={`stat-icon ${tone}`}>{icon}</span><span className="stat-label">{label}</span><strong className="stat-value">{value}</strong><span className="stat-sub">{sub}</span></article>
-}
-
-function ScenarioDetail({
-  scenario, workflow, execution, issues, isAdmin, canExecute, busyAction, issueDraft, onIssueDraftChange, onSaveExecution, onReportIssue, onTransition, editing, editValues, onEditValue, onStartEditing, onCancelEditing, onSaveScenario,
-}: {
-  scenario: RoundScenario | null
-  workflow: RoundWorkflow | undefined
-  execution: ScenarioExecution | undefined
-  issues: ScenarioIssue[]
-  isAdmin: boolean
-  canExecute: boolean
-  busyAction: string
-  issueDraft: string
-  onIssueDraftChange: (value: string) => void
-  onSaveExecution: (status: ExecutionStatus, notes: string) => void
-  onReportIssue: () => void
-  onTransition: (status: WorkflowStatus) => void
-  editing: boolean
-  editValues: { title: string; description: string; steps: string; expected: string }
-  onEditValue: (field: 'title' | 'description' | 'steps' | 'expected', value: string) => void
-  onStartEditing: () => void
-  onCancelEditing: () => void
-  onSaveScenario: () => void
-}) {
-  const [notes, setNotes] = useState(execution?.notes ?? '')
-  if (!scenario) return <aside className="detail-panel detail-empty"><div className="empty-icon">↖</div><h3>اختر سيناريو لعرض التفاصيل</h3><p>ستظهر هنا خطوات الاختبار والنتائج والملاحظات.</p></aside>
-  const currentStatus = execution?.status ?? 'not_tested'
-  const nextStatus = workflow ? nextWorkflowStatus(workflow.status) : null
-
-  return (
-    <aside className="detail-panel">
-      <div className="detail-topline"><span className="detail-id">#{scenario.source_number}</span><span className={`status-badge ${workflowClass[workflow?.status ?? 'open']}`}>{workflowLabels[workflow?.status ?? 'open']}</span>{isAdmin && isEditableWorkflow(workflow?.status) && !editing && <button className="icon-button" onClick={onStartEditing} aria-label="تعديل السيناريو">✎</button>}</div>
-      {editing ? (
-        <div className="edit-form">
-          <label>عنوان السيناريو<input value={editValues.title} onChange={(event) => onEditValue('title', event.target.value)} /></label>
-          <label>الوصف<textarea rows={2} value={editValues.description} onChange={(event) => onEditValue('description', event.target.value)} /></label>
-          <label>الخطوات <small>كل خطوة في سطر مستقل</small><textarea rows={4} value={editValues.steps} onChange={(event) => onEditValue('steps', event.target.value)} /></label>
-          <label>النتائج المتوقعة <small>كل نتيجة في سطر مستقل</small><textarea rows={3} value={editValues.expected} onChange={(event) => onEditValue('expected', event.target.value)} /></label>
-          <div className="detail-actions"><button className="button button-primary" onClick={onSaveScenario} disabled={busyAction === 'scenario-save'}>{busyAction === 'scenario-save' ? 'جارٍ الحفظ…' : 'حفظ التعديلات'}</button><button className="button button-secondary" onClick={onCancelEditing}>إلغاء</button></div>
-        </div>
-      ) : (
-        <>
-          <h2 className="detail-title">{scenario.title}</h2>
-          <p className="detail-context">{scenario.module} <span>·</span> {scenario.section}{scenario.category && <> <span>·</span> {scenario.category}</>}</p>
-          {scenario.description && <p className="detail-description">{scenario.description}</p>}
-          <div className="detail-divider" />
-          {scenario.steps.length > 0 && <DetailList title="خطوات الاختبار" items={scenario.steps} numbered />}
-          {scenario.expected.length > 0 && <DetailList title="النتيجة المتوقعة" items={scenario.expected} />}
-          <div className="detail-divider" />
-          <section className="execution-section">
-            <div className="panel-heading"><div><h3>نتيجة تنفيذك</h3><p>لا تؤثر على نتائج بقية المختبِرين.</p></div></div>
-            <div className="execution-options">
-              {(['passed', 'failed', 'not_applicable'] as const).map((status) => (
-                <button
-                  key={status}
-                  className={`execution-option ${statusClass[status]} ${currentStatus === status ? 'chosen' : ''}`}
-                  disabled={!canExecute || busyAction === `execution-${scenario.scenario_id}`}
-                  onClick={() => onSaveExecution(currentStatus === status ? 'not_tested' : status, notes)}
-                >
-                  <span>{status === 'passed' ? '✓' : status === 'failed' ? '!' : '–'}</span>{statusLabels[status]}
-                </button>
-              ))}
-            </div>
-            <label className="notes-label">ملاحظاتك<textarea rows={3} value={notes} disabled={!canExecute} onChange={(event) => setNotes(event.target.value)} onBlur={() => { if (canExecute && notes !== (execution?.notes ?? '')) onSaveExecution(currentStatus, notes) }} placeholder="سجّل ملاحظاتك أو ما ظهر أثناء الاختبار…" /></label>
-            {!canExecute && <p className="lock-note">التنفيذ مقفل لأن الجولة غير نشطة أو السيناريو لديه مشكلة.</p>}
-            {canExecute && workflow?.status === 'open' && currentStatus === 'failed' && (
-              <div className="issue-report">
-                <label>إبلاغ عن مشكلة<textarea rows={2} value={issueDraft} onChange={(event) => onIssueDraftChange(event.target.value)} placeholder="صف المشكلة التي واجهتها…" /></label>
-                <button className="button button-danger-outline" onClick={onReportIssue} disabled={!issueDraft.trim() || busyAction === 'issue'}>{busyAction === 'issue' ? 'جارٍ الإرسال…' : 'إرسال المشكلة وإغلاق السيناريو'}</button>
-                <small>إرسال البلاغ ينقل حالة السيناريو إلى «لديه مشكلة» ويوقف التنفيذ مؤقتًا.</small>
-              </div>
-            )}
-            {canExecute && workflow?.status === 'open' && currentStatus !== 'failed' && (
-              <p className="lock-note">لتسجيل بلاغ مشكلة، سجّل نتيجة «لديه مشكلة» لهذا السيناريو أولًا.</p>
-            )}
-          </section>
-          {issues.length > 0 && <section className="issue-history"><h3>بلاغات المشكلة</h3>{issues.map((issue) => <article key={issue.id}><small>{formatDate(issue.created_at)}</small><p>{issue.report}</p></article>)}</section>}
-          {isAdmin && nextStatus && (
-            <button className="button button-primary full-button" onClick={() => onTransition(nextStatus)} disabled={busyAction === `workflow-${scenario.scenario_id}`}>
-              {busyAction === `workflow-${scenario.scenario_id}` ? 'جارٍ التحديث…' : nextStatus === 'in_progress' ? 'بدء المعالجة' : 'إغلاق المشكلة'}
-            </button>
-          )}
-          {workflow?.status === 'closed' && <p className="closed-note">تم إغلاق هذه المشكلة. السيناريو محفوظ في سجل الجولة.</p>}
-        </>
-      )}
-    </aside>
-  )
-}
-
-function DetailList({ title, items, numbered = false }: { title: string; items: string[]; numbered?: boolean }) {
-  return <section className="detail-list"><h3>{title}</h3><ol className={numbered ? '' : 'plain-list'}>{items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol></section>
-}
-
-function IssuesPage({
-  workflows, scenarios, issues, isAdmin, busyAction, onOpenScenario, onTransition,
-}: {
-  workflows: RoundWorkflow[]
-  scenarios: RoundScenario[]
-  issues: ScenarioIssue[]
-  isAdmin: boolean
-  busyAction: string
-  onOpenScenario: (id: string) => void
-  onTransition: (workflow: RoundWorkflow, status: WorkflowStatus) => void
-}) {
-  if (workflows.length === 0) return <EmptyState title="لا توجد مشكلات في هذه الجولة" body="عند الإبلاغ عن مشكلة في سيناريو، ستظهر هنا للفريق." />
-  return <section className="issue-list">{workflows.map((workflow) => {
-    const scenario = scenarios.find((item) => item.scenario_id === workflow.scenario_id)
-    const issue = issues.find((item) => item.scenario_id === workflow.scenario_id)
-    const next = nextWorkflowStatus(workflow.status)
-    return (
-      <article className="panel issue-card" key={workflow.scenario_id}>
-        <div className="issue-card-heading"><span className={`status-badge ${workflowClass[workflow.status]}`}>{workflowLabels[workflow.status]}</span><span className="detail-id">#{scenario?.source_number}</span></div>
-        <h2>{scenario?.title ?? workflow.scenario_id}</h2>
-        <p className="detail-context">{scenario?.module} · {scenario?.section}</p>
-        {workflow.issue_summary && <p className="issue-summary-text">{workflow.issue_summary}</p>}
-        {issue && <div className="issue-quote"><small>تفاصيل البلاغ · {formatDate(issue.created_at)}</small><p>{issue.report}</p></div>}
-        <div className="issue-card-actions"><button className="button button-secondary" onClick={() => onOpenScenario(workflow.scenario_id)}>عرض السيناريو</button>{isAdmin && next && <button className="button button-primary" onClick={() => onTransition(workflow, next)} disabled={busyAction === `workflow-${workflow.scenario_id}`}>{next === 'in_progress' ? 'بدء المعالجة' : 'إغلاق المشكلة'}</button>}</div>
-      </article>
-    )
-  })}</section>
-}
-
-function RoundsPage({
-  rounds, selectedRoundId, isAdmin, roundName, roundDescription, formError, busyAction, onRoundName, onRoundDescription, onCreateRound, onSelectRound, onUpdateStatus,
-  scenarioCatalog, includeAllScenarios, onIncludeAllScenarios, selectedScenarioIds, onSelectedScenarioIds, scenarioPickerSearch, onScenarioPickerSearch,
-}: {
-  rounds: Round[]
-  selectedRoundId: string
-  isAdmin: boolean
-  roundName: string
-  roundDescription: string
-  formError: string
-  busyAction: string
-  onRoundName: (value: string) => void
-  onRoundDescription: (value: string) => void
-  onCreateRound: (event: FormEvent<HTMLFormElement>) => void
-  onSelectRound: (id: string) => void
-  onUpdateStatus: (round: Round, status: RoundStatus) => void
-  scenarioCatalog: ScenarioCatalogItem[]
-  includeAllScenarios: boolean
-  onIncludeAllScenarios: (includeAll: boolean) => void
-  selectedScenarioIds: string[]
-  onSelectedScenarioIds: (ids: string[]) => void
-  scenarioPickerSearch: string
-  onScenarioPickerSearch: (value: string) => void
-}) {
-  const filteredCatalog = scenarioCatalog.filter((scenario) =>
-    `${scenario.title} ${scenario.module} ${scenario.section}`.toLocaleLowerCase().includes(scenarioPickerSearch.trim().toLocaleLowerCase()),
-  )
-  return (
-    <div className="rounds-layout">
-      {isAdmin && <form className="panel round-create-form" onSubmit={onCreateRound}><div><h2>إنشاء جولة جديدة</h2><p>{includeAllScenarios ? `سيتم نسخ جميع السيناريوهات (${scenarioCatalog.length}) إلى الجولة.` : `تم اختيار ${selectedScenarioIds.length} سيناريو.`}</p></div><label>اسم الجولة<input value={roundName} onChange={(event) => onRoundName(event.target.value)} placeholder="مثال: اختبار القبول - الجولة الأولى" /></label><label>وصف (اختياري)<textarea rows={2} value={roundDescription} onChange={(event) => onRoundDescription(event.target.value)} placeholder="ما الذي تتضمنه هذه الجولة؟" /></label><label className="scenario-set-toggle"><input type="checkbox" checked={includeAllScenarios} onChange={(event) => onIncludeAllScenarios(event.target.checked)} /><span>إضافة كل السيناريوهات (افتراضي)</span></label>{!includeAllScenarios && <div className="scenario-picker"><input aria-label="البحث عن سيناريو" value={scenarioPickerSearch} onChange={(event) => onScenarioPickerSearch(event.target.value)} placeholder="ابحث بالعنوان أو النظام أو القسم…" /><div className="scenario-picker-list">{filteredCatalog.map((scenario) => <label key={scenario.id}><input type="checkbox" checked={selectedScenarioIds.includes(scenario.id)} onChange={(event) => onSelectedScenarioIds(event.target.checked ? [...selectedScenarioIds, scenario.id] : selectedScenarioIds.filter((id) => id !== scenario.id))} /><span><strong>{scenario.title}</strong><small>{scenario.module} · {scenario.section}</small></span></label>)}{filteredCatalog.length === 0 && <p className="empty-inline">لا توجد سيناريوهات مطابقة.</p>}</div></div>}{formError && <p className="inline-error">{formError}</p>}<button className="button button-primary" disabled={busyAction === 'round-create'}>{busyAction === 'round-create' ? 'جارٍ الإنشاء…' : 'إنشاء الجولة ونسخ السيناريوهات'}</button></form>}
-      <section className="round-list">{rounds.length === 0 ? <EmptyState title="لا توجد جولات" body="ستظهر الجولات التي أنشأها المسؤول هنا." /> : rounds.map((round) => <article className={`panel round-card ${selectedRoundId === round.id ? 'current-round' : ''}`} key={round.id}><div className="round-card-top"><span className={`status-badge ${round.status === 'active' ? 'success' : 'muted'}`}>{roundLabels[round.status]}</span><span>{formatDate(round.created_at)}</span></div><h2>{round.name}</h2><p>{round.description || 'لا يوجد وصف لهذه الجولة.'}</p><div className="round-card-actions"><button className="button button-secondary" onClick={() => onSelectRound(round.id)}>فتح الجولة</button>{isAdmin && round.status === 'planned' && <button className="button button-primary" disabled={busyAction === `round-${round.id}`} onClick={() => onUpdateStatus(round, 'active')}>تفعيل</button>}{isAdmin && round.status === 'active' && <button className="button button-secondary" disabled={busyAction === `round-${round.id}`} onClick={() => onUpdateStatus(round, 'completed')}>إنهاء الجولة</button>}{isAdmin && round.status === 'completed' && <button className="button button-secondary" disabled={busyAction === `round-${round.id}`} onClick={() => onUpdateStatus(round, 'archived')}>أرشفة</button>}</div></article>)}</section>
-    </div>
-  )
-}
-
-function EmptyState({ title, body }: { title: string; body: string }) {
-  return <div className="empty-state"><span className="empty-icon">☷</span><h3>{title}</h3><p>{body}</p></div>
-}
-
-function pageTitle(page: Page): string {
-  return { overview: 'نظرة عامة', scenarios: 'سيناريوهات الاختبار', issues: 'متابعة المشكلات', rounds: 'الجولات والسبرنتات' }[page]
-}
-
-function pageDescription(page: Page, round: Round | null, isAdmin: boolean): string {
-  if (page === 'overview') return round ? `نظرة موحدة على التقدم والنتائج في «${round.name}».` : 'نظرة موحدة على التقدم والنتائج في الجولة الحالية.'
-  if (page === 'scenarios') return 'نفّذ السيناريوهات وسجّل نتيجتك؛ بيانات كل مختبِر مستقلة.'
-  if (page === 'issues') return isAdmin ? 'راجع البلاغات وحرّكها خلال مراحل المعالجة.' : 'تابع المشكلات التي أُبلغ عنها في الجولة.'
-  return isAdmin ? 'أنشئ جولات الاختبار وأدر حالتها.' : 'استعرض جولات الاختبار وسجلها.'
 }
 
 export default App

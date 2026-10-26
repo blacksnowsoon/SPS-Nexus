@@ -24,7 +24,7 @@ The implementation should use Vite, React, TypeScript, Tailwind CSS, and Supabas
 - **Client SDK:** `@supabase/supabase-js`
 - **Authentication:** Supabase Google OAuth provider
 - **Tests:** Vitest, React Testing Library, user-event; test database policies/migrations with Supabase CLI if available
-- **Optional reports:** client-side XLSX, DOCX, and PDF export may be added after core collaboration and workflow are complete. Reports must use authorized, current Supabase data.
+- **Issue exports:** admins can select issue reports and export an XLSX workbook or a print-ready PDF from authorized, current Supabase data. PDF export uses the browser's print-to-PDF flow. DOCX and other reports remain optional future work.
 
 Use a package lockfile and compatible pinned dependency versions. Configure Vite with public Supabase URL and anon/publishable key variables. Never put the Supabase service-role key or Google OAuth client secret in browser code, `.env` files committed to source control, or client-visible build variables.
 

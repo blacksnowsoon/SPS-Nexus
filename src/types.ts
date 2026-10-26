@@ -79,6 +79,18 @@ export interface ScenarioIssue {
   created_at: string
 }
 
+export interface IssueReporter {
+  id: string
+  display_name: string | null
+  avatar_url: string | null
+}
+
+export interface IssueExecutionNote {
+  scenario_id: string
+  user_id: string
+  notes: string
+}
+
 export interface ExecutionCounts {
   total: number
   not_tested: number
@@ -203,6 +215,14 @@ export interface Database {
       active_member_count: {
         Args: Record<string, never>
         Returns: number
+      }
+      issue_reporters: {
+        Args: { p_round_id: string }
+        Returns: IssueReporter[]
+      }
+      issue_execution_notes: {
+        Args: { p_round_id: string }
+        Returns: IssueExecutionNote[]
       }
     }
     Enums: Record<string, never>

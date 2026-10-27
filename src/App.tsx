@@ -393,6 +393,48 @@ function App() {
     setBusyAction('')
   }
 
+  const updateRoundDetails = async (round: Round, name: string, description: string) => {
+    if (!supabase || !isAdmin) return false
+    if (!name.trim()) {
+      setError('اسم الجولة مطلوب.')
+      return false
+    }
+    setBusyAction(`round-${round.id}`)
+    setError('')
+    const { error: updateError } = await supabase.rpc('admin_update_round', {
+      p_round_id: round.id,
+      p_name: name.trim(),
+      p_description: description.trim() || null,
+    })
+    if (updateError) {
+      setError(`تعذر حفظ تعديلات الجولة: ${updateError.message}`)
+      setBusyAction('')
+      return false
+    }
+    setWorkspaceLoading(true)
+    await loadWorkspace()
+    setSuccessMessage('تم تحديث بيانات الجولة.')
+    setBusyAction('')
+    return true
+  }
+
+  const deleteRound = async (round: Round) => {
+    if (!supabase || !isAdmin) return
+    setBusyAction(`round-${round.id}`)
+    setError('')
+    const { error: deleteError } = await supabase.rpc('admin_delete_round', {
+      p_round_id: round.id,
+    })
+    if (deleteError) {
+      setError(`تعذر حذف الجولة: ${deleteError.message}`)
+    } else {
+      setWorkspaceLoading(true)
+      await loadWorkspace()
+      setSuccessMessage('تم حذف الجولة وبياناتها المرتبطة.')
+    }
+    setBusyAction('')
+  }
+
   const selectScenario = (scenarioId: string) => {
     const scenario = scenarios.find((item) => item.scenario_id === scenarioId)
     if (scenario) {
@@ -690,6 +732,8 @@ function App() {
                 setPage('overview')
               }}
               onUpdateStatus={(round, status) => void updateRoundStatus(round, status)}
+              onUpdateRound={updateRoundDetails}
+              onDeleteRound={(round) => void deleteRound(round)}
               scenarioCatalog={scenarioCatalog}
               includeAllScenarios={includeAllScenarios}
               onIncludeAllScenarios={setIncludeAllScenarios}

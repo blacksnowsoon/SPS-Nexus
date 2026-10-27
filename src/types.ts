@@ -180,6 +180,14 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      admin_update_round: {
+        Args: { p_round_id: string; p_name: string; p_description: string | null }
+        Returns: undefined
+      }
+      admin_delete_round: {
+        Args: { p_round_id: string }
+        Returns: undefined
+      }
       admin_create_round: {
         Args: { p_name: string; p_description?: string | null; p_scenario_ids?: string[] | null }
         Returns: string

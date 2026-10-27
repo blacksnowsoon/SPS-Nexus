@@ -1,3 +1,4 @@
+import {  useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Round, RoundStatus, ScenarioCatalogItem } from '../../types'
 import { EmptyState } from '../common/EmptyState'
@@ -16,6 +17,8 @@ export interface RoundsPageProps {
   onCreateRound: (event: FormEvent<HTMLFormElement>) => void
   onSelectRound: (id: string) => void
   onUpdateStatus: (round: Round, status: RoundStatus) => void
+  onUpdateRound: (round: Round, name: string, description: string) => Promise<boolean>
+  onDeleteRound: (round: Round) => void
   scenarioCatalog: ScenarioCatalogItem[]
   includeAllScenarios: boolean
   onIncludeAllScenarios: (includeAll: boolean) => void
@@ -45,6 +48,8 @@ export function RoundsPage({
   onCreateRound,
   onSelectRound,
   onUpdateStatus,
+  onUpdateRound,
+  onDeleteRound,
   scenarioCatalog,
   includeAllScenarios,
   onIncludeAllScenarios,
@@ -53,6 +58,9 @@ export function RoundsPage({
   scenarioPickerSearch,
   onScenarioPickerSearch,
 }: RoundsPageProps) {
+  const [editingRoundId, setEditingRoundId] = useState('')
+  const [editRoundName, setEditRoundName] = useState('')
+  const [editRoundDescription, setEditRoundDescription] = useState('')
   const filteredCatalog = scenarioCatalog.filter((scenario) =>
     `${scenario.title} ${scenario.module} ${scenario.section}`
       .toLocaleLowerCase()
@@ -190,9 +198,55 @@ export function RoundsPage({
                 </div>
 
                 <h2 className="text-sm font-bold text-slate-900 mt-3 mb-1">{round.name}</h2>
-                <p className="text-xs text-slate-500 leading-relaxed mb-4">
-                  {round.description || 'لا يوجد وصف لهذه الجولة.'}
-                </p>
+                {editingRoundId === round.id ? (
+                  <form
+                    className="space-y-2 mb-4"
+                    onSubmit={async (event) => {
+                      event.preventDefault()
+                      if (await onUpdateRound(round, editRoundName, editRoundDescription)) {
+                        setEditingRoundId('')
+                      }
+                    }}
+                  >
+                    <label className="block text-xs font-semibold text-slate-700">
+                      اسم الجولة
+                      <input
+                        autoFocus
+                        value={editRoundName}
+                        onChange={(event) => setEditRoundName(event.target.value)}
+                        className="mt-1 w-full border border-slate-200 rounded-lg p-2 text-xs text-slate-800"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      الوصف
+                      <textarea
+                        rows={2}
+                        value={editRoundDescription}
+                        onChange={(event) => setEditRoundDescription(event.target.value)}
+                        className="mt-1 w-full border border-slate-200 rounded-lg p-2 text-xs text-slate-800"
+                      />
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        className="inline-flex items-center justify-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                        disabled={busyAction === `round-${round.id}`}
+                      >
+                        حفظ
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center px-3 py-1.5 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
+                        onClick={() => setEditingRoundId('')}
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="text-xs text-slate-500 leading-relaxed mb-4">
+                    {round.description || 'لا يوجد وصف لهذه الجولة.'}
+                  </p>
+                )}
 
                 <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
                   <button
@@ -226,6 +280,36 @@ export function RoundsPage({
                       onClick={() => onUpdateStatus(round, 'archived')}
                     >
                       أرشفة
+                    </button>
+                  )}
+                  {isAdmin && editingRoundId !== round.id && (
+                    <button
+                      className="inline-flex items-center justify-center px-3.5 py-1.5 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-xl text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
+                      disabled={busyAction === `round-${round.id}`}
+                      onClick={() => {
+                        setEditRoundName(round.name)
+                        setEditRoundDescription(round.description ?? '')
+                        setEditingRoundId(round.id)
+                      }}
+                    >
+                      تعديل
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      className="inline-flex items-center justify-center px-3.5 py-1.5 border border-rose-200 text-rose-700 bg-white hover:bg-rose-50 rounded-xl text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
+                      disabled={busyAction === `round-${round.id}`}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `هل أنت متأكد من حذف الجولة «${round.name}»؟ سيؤدي ذلك إلى حذف بيانات التنفيذ وتقارير المشكلات المرتبطة بها نهائيًا.`,
+                          )
+                        ) {
+                          onDeleteRound(round)
+                        }
+                      }}
+                    >
+                      حذف
                     </button>
                   )}
                 </div>

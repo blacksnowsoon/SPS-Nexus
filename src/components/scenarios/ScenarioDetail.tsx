@@ -273,7 +273,7 @@ export function ScenarioDetail({
 
             {canExecute && workflow?.status === 'open' && currentStatus !== 'failed' && (
               <p className="text-[11px] text-slate-400 mt-2">
-                لتسجيل بلاغ مشكلة، سجّل نتيجة «فشل» لهذا السيناريو أولًا.
+                لتسجيل بلاغ مشكلة، سجّل النتيجة «فشل» لهذا السيناريو أولًا.
               </p>
             )}
           </section>

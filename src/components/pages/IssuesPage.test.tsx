@@ -63,7 +63,7 @@ const executionNote: IssueExecutionNote = {
   notes: 'ظهرت رسالة تحقق بعد الضغط على حفظ',
 }
 
-function renderIssuesPage(isAdmin: boolean) {
+function renderIssuesPage(isAdmin: boolean, roundIsActive = true, onTransition = vi.fn()) {
   return render(
     <IssuesPage
       workflows={[workflow]}
@@ -72,15 +72,30 @@ function renderIssuesPage(isAdmin: boolean) {
       reporters={[reporter]}
       executionNotes={[executionNote]}
       roundName="جولة الاختبار"
+      roundIsActive={roundIsActive}
       isAdmin={isAdmin}
       busyAction=""
       onOpenScenario={vi.fn()}
-      onTransition={vi.fn()}
+      onTransition={onTransition}
     />,
   )
 }
 
 describe('IssuesPage', () => {
+  it('lets admins return issues to testers only while the round is active', async () => {
+    const user = userEvent.setup()
+    const onTransition = vi.fn()
+    renderIssuesPage(true, true, onTransition)
+
+    await user.click(screen.getByRole('button', { name: 'إعادة للمختبِر للتعديل' }))
+
+    expect(onTransition).toHaveBeenCalledWith(workflow, 'open')
+
+    cleanup()
+    renderIssuesPage(true, false)
+    expect(screen.queryByRole('button', { name: 'إعادة للمختبِر للتعديل' })).not.toBeInTheDocument()
+  })
+
   it('shows the report author name and avatar', () => {
     const { container } = renderIssuesPage(false)
 

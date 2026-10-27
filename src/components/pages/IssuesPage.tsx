@@ -19,6 +19,7 @@ export interface IssuesPageProps {
   reporters: IssueReporter[]
   executionNotes: IssueExecutionNote[]
   roundName: string
+  roundIsActive: boolean
   isAdmin: boolean
   busyAction: string
   onOpenScenario: (id: string) => void
@@ -32,6 +33,7 @@ export function IssuesPage({
   reporters,
   executionNotes,
   roundName,
+  roundIsActive,
   isAdmin,
   busyAction,
   onOpenScenario,
@@ -215,6 +217,15 @@ export function IssuesPage({
                     disabled={busyAction === `workflow-${workflow.scenario_id}`}
                   >
                     {next === 'in_progress' ? 'بدء المعالجة' : 'إغلاق المشكلة'}
+                  </button>
+                )}
+                {isAdmin && roundIsActive && workflow.status === 'has_issues' && (
+                  <button
+                    className="inline-flex items-center justify-center px-3.5 py-1.5 border border-emerald-200 text-emerald-800 bg-white hover:bg-emerald-50 rounded-xl text-xs font-semibold shadow-2xs disabled:opacity-50 transition-colors"
+                    onClick={() => onTransition(workflow, 'open')}
+                    disabled={busyAction === `workflow-${workflow.scenario_id}`}
+                  >
+                    إعادة للمختبِر للتعديل
                   </button>
                 )}
               </div>

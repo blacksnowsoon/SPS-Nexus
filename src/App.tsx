@@ -313,7 +313,9 @@ function App() {
       setError(`تعذر تحديث حالة المشكلة: ${transitionError.message}`)
     } else {
       await loadRoundContent(selectedRound.id)
-      setSuccessMessage('تم تحديث الحالة بنجاح.')
+      setSuccessMessage(
+        target === 'open' ? 'تمت إعادة السيناريو إلى المختبِر للتعديل.' : 'تم تحديث الحالة بنجاح.',
+      )
     }
     setBusyAction('')
   }
@@ -702,6 +704,7 @@ function App() {
               reporters={issueReporters}
               executionNotes={issueExecutionNotes}
               roundName={selectedRound.name}
+              roundIsActive={selectedRound.status === 'active'}
               isAdmin={isAdmin}
               busyAction={busyAction}
               onOpenScenario={(scenarioId) => {

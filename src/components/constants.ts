@@ -1,4 +1,4 @@
-import type { ExecutionStatus, RoundStatus, WorkflowStatus } from '../types'
+import type { ExecutionStatus, IssueStatus, RoundStatus, WorkflowStatus } from '../types'
 
 export type Page = 'overview' | 'scenarios' | 'issues' | 'rounds' | 'scenario-catalog'
 
@@ -63,6 +63,18 @@ export const workflowDotClasses: Record<WorkflowStatus, string> = {
   has_issues: 'bg-rose-500',
   in_progress: 'bg-amber-500',
   closed: 'bg-slate-400',
+}
+
+export const issueStatusLabels: Record<IssueStatus, string> = {
+  open: 'مفتوح',
+  returned: 'مُعاد للمبلّغ',
+  resolved: 'تم الحل',
+}
+
+export const issueStatusBadgeClasses: Record<IssueStatus, string> = {
+  open: 'bg-rose-50 text-rose-700 border border-rose-200/60',
+  returned: 'bg-amber-50 text-amber-700 border border-amber-200/60',
+  resolved: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60',
 }
 
 export function formatDate(value: string): string {

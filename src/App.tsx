@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { countExecutions, filterScenarios, isEditableWorkflow } from './lib/checklist'
+import { countExecutions, filterScenarios } from './lib/checklist'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 import type {
   ExecutionStatus,
@@ -90,9 +90,11 @@ function App() {
   const isAdmin = profile?.role === 'admin' && profile.status === 'active'
   const selectedRound = rounds.find((round) => round.id === selectedRoundId) ?? null
   const currentWorkflow = workflows.find((workflow) => workflow.scenario_id === selectedScenarioId)
-  const currentExecution = executions.find((execution) => execution.scenario_id === selectedScenarioId)
+  const currentExecution = executions.find(
+    (execution) => execution.scenario_id === selectedScenarioId && execution.user_id === user?.id,
+  )
   const selectedScenario = scenarios.find((scenario) => scenario.scenario_id === selectedScenarioId) ?? null
-  const canExecute = Boolean(selectedRound?.status === 'active' && isEditableWorkflow(currentWorkflow?.status))
+  const canExecute = selectedRound?.status === 'active'
   const modules = useMemo(() => [...new Set(scenarios.map((scenario) => scenario.module))], [scenarios])
 
   const loadProfile = useCallback(async (userId: string) => {
@@ -299,8 +301,77 @@ function App() {
       setError(`تعذر تسجيل المشكلة: ${issueError.message}`)
     } else {
       setIssueDraft('')
-      setSuccessMessage('تم تسجيل المشكلة وإغلاق السيناريو للاختبار.')
-      await loadRoundContent(selectedRound.id)
+      setSuccessMessage('تم تسجيل بلاغ المشكلة.')
+      const { data: refreshedIssues, error: refreshError } = await supabase
+        .from('scenario_issues')
+        .select('*')
+        .eq('round_id', selectedRound.id)
+        .order('created_at', { ascending: false })
+      if (refreshError) {
+        setError(`تم تسجيل البلاغ لكن تعذر تحديث القائمة: ${refreshError.message}`)
+      } else {
+        setIssues(refreshedIssues ?? [])
+      }
+    }
+    setBusyAction('')
+  }
+
+  const refreshIssues = async () => {
+    if (!supabase || !selectedRound) return false
+    const { data, error: refreshError } = await supabase
+      .from('scenario_issues')
+      .select('*')
+      .eq('round_id', selectedRound.id)
+      .order('created_at', { ascending: false })
+    if (refreshError) {
+      setError(`تعذر تحديث قائمة البلاغات: ${refreshError.message}`)
+      return false
+    }
+    setIssues(data ?? [])
+    return true
+  }
+
+  const returnIssueToReporter = async (issueId: string) => {
+    if (!supabase || !selectedRound || !isAdmin) return
+    setBusyAction(`issue-return-${issueId}`)
+    setError('')
+    const { error: rpcError } = await supabase.rpc('admin_return_issue', { p_issue_id: issueId })
+    if (rpcError) {
+      setError(`تعذر إعادة البلاغ: ${rpcError.message}`)
+    } else {
+      setSuccessMessage('تمت إعادة البلاغ إلى المبلّغ للتعديل.')
+      await refreshIssues()
+    }
+    setBusyAction('')
+  }
+
+  const resolveIssue = async (issueId: string) => {
+    if (!supabase || !selectedRound || !isAdmin) return
+    setBusyAction(`issue-resolve-${issueId}`)
+    setError('')
+    const { error: rpcError } = await supabase.rpc('admin_resolve_issue', { p_issue_id: issueId })
+    if (rpcError) {
+      setError(`تعذر حل البلاغ: ${rpcError.message}`)
+    } else {
+      setSuccessMessage('تم تحديد البلاغ كمحلول.')
+      await refreshIssues()
+    }
+    setBusyAction('')
+  }
+
+  const updateIssueReport = async (issueId: string, newReport: string) => {
+    if (!supabase || !selectedRound || !newReport.trim()) return
+    setBusyAction(`issue-update-${issueId}`)
+    setError('')
+    const { error: rpcError } = await supabase.rpc('tester_update_issue', {
+      p_issue_id: issueId,
+      p_report: newReport.trim(),
+    })
+    if (rpcError) {
+      setError(`تعذر تحديث البلاغ: ${rpcError.message}`)
+    } else {
+      setSuccessMessage('تم تحديث بلاغ المشكلة.')
+      await refreshIssues()
     }
     setBusyAction('')
   }
@@ -522,8 +593,10 @@ function App() {
   )
   const myCounts = countExecutions(scenarios.length, ownExecutions)
   const teamCounts = countExecutions(scenarios.length * activeMemberCount, executions)
-  const issueWorkflows = workflows.filter((workflow) => workflow.status !== 'open')
+  const activeIssues = issues.filter((issue) => issue.status !== 'resolved')
   const selectedIssues = issues.filter((issue) => issue.scenario_id === selectedScenarioId)
+  const ownIssueStatus =
+    selectedIssues.find((issue) => issue.reported_by === user?.id && issue.status !== 'resolved')?.status ?? null
 
   return (
     <div className="min-h-screen bg-slate-50/60 text-slate-800" dir="rtl">
@@ -554,7 +627,7 @@ function App() {
           page={page}
           onPageChange={setPage}
           scenarioCount={scenarios.length}
-          issueCount={issueWorkflows.length}
+          issueCount={activeIssues.length}
           profile={profile}
           isAdmin={isAdmin}
           collapsed={isSidebarCollapsed}
@@ -667,7 +740,7 @@ function App() {
               teamCounts={teamCounts}
               isAdmin={isAdmin}
               scenarioCount={scenarios.length}
-              workflowCounts={issueWorkflows}
+              issues={issues}
               round={selectedRound}
               onOpenScenarios={() => setPage('scenarios')}
               onOpenIssues={() => setPage('issues')}
@@ -700,6 +773,7 @@ function App() {
               currentWorkflow={currentWorkflow}
               currentExecution={currentExecution}
               selectedIssues={selectedIssues}
+              ownIssueStatus={ownIssueStatus}
               isAdmin={isAdmin}
               canExecute={canExecute}
               busyAction={busyAction}
@@ -741,20 +815,22 @@ function App() {
           {selectedRound && page === 'issues' && (
             <IssuesPage
               key={selectedRound.id}
-              workflows={issueWorkflows}
+              workflows={workflows}
               scenarios={scenarios}
               issues={issues}
               reporters={issueReporters}
               executionNotes={issueExecutionNotes}
               roundName={selectedRound.name}
-              roundIsActive={selectedRound.status === 'active'}
               isAdmin={isAdmin}
               busyAction={busyAction}
+              userId={user?.id ?? ''}
               onOpenScenario={(scenarioId) => {
                 selectScenario(scenarioId)
                 setPage('scenarios')
               }}
-              onTransition={(workflow, status) => void transitionWorkflow(workflow, status)}
+              onReturnIssue={(issueId) => void returnIssueToReporter(issueId)}
+              onResolveIssue={(issueId) => void resolveIssue(issueId)}
+              onUpdateIssue={(issueId, report) => void updateIssueReport(issueId, report)}
             />
           )}
 

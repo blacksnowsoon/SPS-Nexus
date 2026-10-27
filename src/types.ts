@@ -3,6 +3,7 @@ export type ProfileStatus = 'pending' | 'active'
 export type RoundStatus = 'planned' | 'active' | 'completed' | 'archived'
 export type WorkflowStatus = 'open' | 'has_issues' | 'in_progress' | 'closed'
 export type ExecutionStatus = 'not_tested' | 'passed' | 'failed' | 'not_applicable'
+export type IssueStatus = 'open' | 'returned' | 'resolved'
 
 export interface Profile {
   id: string
@@ -93,6 +94,7 @@ export interface ScenarioIssue {
   scenario_id: string
   reported_by: string
   report: string
+  status: IssueStatus
   created_at: string
 }
 
@@ -275,6 +277,18 @@ export interface Database {
       issue_execution_notes: {
         Args: { p_round_id: string }
         Returns: IssueExecutionNote[]
+      }
+      admin_return_issue: {
+        Args: { p_issue_id: string }
+        Returns: undefined
+      }
+      admin_resolve_issue: {
+        Args: { p_issue_id: string }
+        Returns: undefined
+      }
+      tester_update_issue: {
+        Args: { p_issue_id: string; p_report: string }
+        Returns: undefined
       }
     }
     Enums: Record<string, never>

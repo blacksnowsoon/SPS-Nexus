@@ -32,8 +32,25 @@ export interface ScenarioCatalogItem {
   id: string
   module: string
   section: string
+  category: string
+  source_number: number
   title: string
   source_order: number
+  description: string
+  steps: string[]
+  expected: string[]
+  is_builtin: boolean
+}
+
+export interface ScenarioCatalogDraft {
+  module: string
+  section: string
+  category: string
+  source_number: number
+  title: string
+  description: string
+  steps: string[]
+  expected: string[]
 }
 
 export interface RoundScenario {
@@ -180,6 +197,33 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      admin_create_catalog_scenario: {
+        Args: {
+          p_module: string
+          p_section: string
+          p_category: string
+          p_source_number: number
+          p_title: string
+          p_description: string
+          p_steps: string[]
+          p_expected: string[]
+        }
+        Returns: string
+      }
+      admin_update_catalog_scenario: {
+        Args: {
+          p_scenario_id: string
+          p_module: string
+          p_section: string
+          p_category: string
+          p_source_number: number
+          p_title: string
+          p_description: string
+          p_steps: string[]
+          p_expected: string[]
+        }
+        Returns: undefined
+      }
       admin_update_round: {
         Args: { p_round_id: string; p_name: string; p_description: string | null }
         Returns: undefined

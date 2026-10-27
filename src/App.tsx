@@ -14,6 +14,7 @@ import type {
   RoundStatus,
   RoundWorkflow,
   ScenarioCatalogItem,
+  ScenarioCatalogDraft,
   ScenarioExecution,
   ScenarioIssue,
   WorkflowStatus,
@@ -28,6 +29,7 @@ import { OverviewPage } from './components/pages/OverviewPage'
 import { ScenariosPage } from './components/pages/ScenariosPage'
 import { IssuesPage } from './components/pages/IssuesPage'
 import { RoundsPage } from './components/pages/RoundsPage'
+import { ScenarioCatalogPage } from './components/pages/ScenarioCatalogPage'
 import './App.css'
 
 function App() {
@@ -191,7 +193,10 @@ function App() {
       supabase.from('projects').select('*').order('created_at').limit(1).maybeSingle(),
       supabase.from('rounds').select('*').order('created_at', { ascending: false }),
       isAdmin ? supabase.rpc('active_member_count', {}) : Promise.resolve({ data: 0, error: null }),
-      supabase.from('scenarios').select('id,module,section,title,source_order').order('source_order'),
+      supabase
+        .from('scenarios')
+        .select('id,source_order,module,section,category,source_number,title,description,steps,expected,is_builtin')
+        .order('source_order'),
     ])
     const queryError = projectResult.error ?? roundsResult.error ?? memberResult.error ?? catalogResult.error
     if (queryError) {
@@ -376,6 +381,44 @@ function App() {
       if (roundId) setSelectedRoundId(roundId)
     }
     setBusyAction('')
+  }
+
+  const saveCatalogScenario = async (draft: ScenarioCatalogDraft, scenarioId?: string) => {
+    if (!supabase || !isAdmin) return false
+    setBusyAction('catalog-save')
+    setError('')
+    const args = {
+      p_module: draft.module,
+      p_section: draft.section,
+      p_category: draft.category,
+      p_source_number: draft.source_number,
+      p_title: draft.title,
+      p_description: draft.description,
+      p_steps: draft.steps,
+      p_expected: draft.expected,
+    }
+    const { error: saveError } = scenarioId
+      ? await supabase.rpc('admin_update_catalog_scenario', { p_scenario_id: scenarioId, ...args })
+      : await supabase.rpc('admin_create_catalog_scenario', args)
+    if (saveError) {
+      setError(`تعذر حفظ السيناريو: ${saveError.message}`)
+      setBusyAction('')
+      return false
+    }
+
+    const { data, error: loadError } = await supabase
+      .from('scenarios')
+      .select('id,source_order,module,section,category,source_number,title,description,steps,expected,is_builtin')
+      .order('source_order')
+    if (loadError) {
+      setError(`تم الحفظ لكن تعذر تحديث الكتالوج: ${loadError.message}`)
+      setBusyAction('')
+      return false
+    }
+    setScenarioCatalog(data ?? [])
+    setSuccessMessage(scenarioId ? 'تم تحديث السيناريو في الكتالوج للجولات الجديدة.' : 'تمت إضافة السيناريو إلى الكتالوج.')
+    setBusyAction('')
+    return true
   }
 
   const updateRoundStatus = async (round: Round, status: RoundStatus) => {
@@ -596,7 +639,7 @@ function App() {
             </div>
           )}
 
-          {!selectedRound && !workspaceLoading && (
+          {!selectedRound && !workspaceLoading && page !== 'scenario-catalog' && (
             <section className="bg-white border border-slate-200/90 rounded-2xl p-10 sm:p-14 text-center shadow-xs mt-6">
               <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 font-bold text-xl flex items-center justify-center mx-auto mb-3">
                 ◷
@@ -744,6 +787,14 @@ function App() {
               onSelectedScenarioIds={setSelectedScenarioIds}
               scenarioPickerSearch={scenarioPickerSearch}
               onScenarioPickerSearch={setScenarioPickerSearch}
+            />
+          )}
+
+          {page === 'scenario-catalog' && isAdmin && (
+            <ScenarioCatalogPage
+              scenarios={scenarioCatalog}
+              busyAction={busyAction}
+              onSave={saveCatalogScenario}
             />
           )}
         </main>

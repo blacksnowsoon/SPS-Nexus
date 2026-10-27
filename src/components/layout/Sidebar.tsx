@@ -101,7 +101,7 @@ export function Sidebar({
       )}
 
       <nav
-        className="grid gap-1 max-md:grid-cols-4 max-md:h-full max-md:items-center max-md:gap-0.5"
+        className={`grid gap-1 ${isAdmin ? 'max-md:grid-cols-5' : 'max-md:grid-cols-4'} max-md:h-full max-md:items-center max-md:gap-0.5`}
         aria-label="التنقل الرئيسي"
       >
         <NavButton
@@ -151,6 +151,18 @@ export function Sidebar({
         >
           <span>الجولات</span>
         </NavButton>
+
+        {isAdmin && (
+          <NavButton
+            active={page === 'scenario-catalog'}
+            onClick={() => onPageChange('scenario-catalog')}
+            icon="✎"
+            title="إدارة السيناريوهات"
+            collapsed={collapsed}
+          >
+            <span>إدارة السيناريوهات</span>
+          </NavButton>
+        )}
       </nav>
 
       <div className="mt-auto max-md:hidden">

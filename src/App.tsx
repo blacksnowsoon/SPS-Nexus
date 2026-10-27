@@ -71,6 +71,18 @@ function App() {
   const [editDescription, setEditDescription] = useState('')
   const [editSteps, setEditSteps] = useState('')
   const [editExpected, setEditExpected] = useState('')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sps_sidebar_collapsed')
+    return saved !== null ? saved === 'true' : true
+  })
+
+  const toggleSidebarCollapsed = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev
+      localStorage.setItem('sps_sidebar_collapsed', String(next))
+      return next
+    })
+  }
 
   const user = session?.user
   const isAdmin = profile?.role === 'admin' && profile.status === 'active'
@@ -439,9 +451,17 @@ function App() {
         }}
         profile={profile}
         onSignOut={() => void signOut()}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onToggleSidebar={toggleSidebarCollapsed}
       />
 
-      <div className="grid grid-cols-[244px_minmax(0,1fr)] max-lg:grid-cols-[210px_minmax(0,1fr)] max-md:block max-md:pb-16 min-h-[calc(100vh-72px)]">
+      <div
+        className={`grid ${
+          isSidebarCollapsed
+            ? 'grid-cols-[68px_minmax(0,1fr)]'
+            : 'grid-cols-[244px_minmax(0,1fr)] max-lg:grid-cols-[210px_minmax(0,1fr)]'
+        } max-md:block max-md:pb-16 min-h-[calc(100vh-72px)] transition-[grid-template-columns] duration-200 ease-in-out`}
+      >
         <Sidebar
           project={project}
           page={page}
@@ -450,6 +470,8 @@ function App() {
           issueCount={issueWorkflows.length}
           profile={profile}
           isAdmin={isAdmin}
+          collapsed={isSidebarCollapsed}
+          onToggleCollapsed={toggleSidebarCollapsed}
         />
 
         <main className="max-w-[1540px] w-full mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8 lg:pb-16">

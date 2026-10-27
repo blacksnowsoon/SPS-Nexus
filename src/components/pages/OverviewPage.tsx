@@ -1,13 +1,13 @@
 import { completionPercent, countExecutions } from '../../lib/checklist'
-import type { Round, RoundScenario, RoundWorkflow, ScenarioExecution } from '../../types'
+import type { Round, RoundScenario, ScenarioExecution, ScenarioIssue } from '../../types'
 import { EmptyState } from '../common/EmptyState'
 import { StatCard } from '../common/StatCard'
 import {
   formatDate,
   statusBadgeClasses,
   statusLabels,
-  workflowDotClasses,
-  workflowLabels,
+  issueStatusBadgeClasses,
+  issueStatusLabels,
 } from '../constants'
 
 export interface OverviewPageProps {
@@ -15,7 +15,7 @@ export interface OverviewPageProps {
   teamCounts: ReturnType<typeof countExecutions>
   isAdmin: boolean
   scenarioCount: number
-  workflowCounts: RoundWorkflow[]
+  issues: ScenarioIssue[]
   round: Round
   onOpenScenarios: () => void
   onOpenIssues: () => void
@@ -29,7 +29,7 @@ export function OverviewPage({
   teamCounts,
   isAdmin,
   scenarioCount,
-  workflowCounts,
+  issues,
   round,
   onOpenScenarios,
   onOpenIssues,
@@ -38,7 +38,7 @@ export function OverviewPage({
   executions,
 }: OverviewPageProps) {
   const failed = executions.filter((execution) => execution.status === 'failed')
-  const openIssues = workflowCounts.filter((workflow) => workflow.status !== 'closed')
+  const openIssues = issues.filter((issue) => issue.status !== 'resolved')
   const progress = completionPercent(counts)
   const teamProgress = completionPercent(teamCounts)
 
@@ -164,22 +164,24 @@ export function OverviewPage({
               <p className="text-xs text-slate-400 text-center py-6">لا توجد مشكلات مفتوحة في هذه الجولة.</p>
             ) : (
               <div className="space-y-1">
-                {openIssues.slice(0, 4).map((workflow) => {
-                  const scenario = scenarios.find((item) => item.scenario_id === workflow.scenario_id)
+                {openIssues.slice(0, 4).map((issue) => {
+                  const scenario = scenarios.find((item) => item.scenario_id === issue.scenario_id)
                   return (
                     <button
                       className="w-full flex items-center gap-2.5 p-2 rounded-xl text-start hover:bg-slate-50 transition-colors"
-                      key={workflow.scenario_id}
-                      onClick={() => onSelectScenario(workflow.scenario_id)}
+                      key={issue.id}
+                      onClick={() => onSelectScenario(issue.scenario_id)}
                     >
-                      <span className={`w-2 h-2 rounded-full ${workflowDotClasses[workflow.status]}`} />
                       <span className="flex-1 min-w-0 grid">
                         <strong className="text-xs font-semibold text-slate-800 truncate">
-                          {scenario?.title ?? workflow.scenario_id}
+                          {scenario?.title ?? issue.scenario_id}
                         </strong>
-                        <small className="text-[10px] text-slate-400">
-                          {workflowLabels[workflow.status]}
-                        </small>
+                        <small className="text-[10px] text-slate-400 truncate">{issue.report}</small>
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${issueStatusBadgeClasses[issue.status]}`}
+                      >
+                        {issueStatusLabels[issue.status]}
                       </span>
                       <span className="text-xs text-slate-400">←</span>
                     </button>

@@ -48,7 +48,15 @@ const issue: ScenarioIssue = {
   scenario_id: 'scenario-1',
   reported_by: 'user-1',
   report: 'ظهرت رسالة خطأ عند الحفظ',
+  status: 'open',
   created_at: '2026-10-26T10:00:00Z',
+}
+
+const anotherIssue: ScenarioIssue = {
+  ...issue,
+  id: 'issue-2',
+  reported_by: 'user-2',
+  report: 'تعذر حفظ الطلب في حسابي',
 }
 
 const reporter: IssueReporter = {
@@ -57,56 +65,99 @@ const reporter: IssueReporter = {
   avatar_url: 'https://example.com/avatar.png',
 }
 
+const anotherReporter: IssueReporter = {
+  id: 'user-2',
+  display_name: 'أحمد علي',
+  avatar_url: null,
+}
+
 const executionNote: IssueExecutionNote = {
   scenario_id: 'scenario-1',
   user_id: 'user-1',
   notes: 'ظهرت رسالة تحقق بعد الضغط على حفظ',
 }
 
-function renderIssuesPage(isAdmin: boolean, roundIsActive = true, onTransition = vi.fn()) {
+function renderIssuesPage(
+  isAdmin: boolean,
+  pageIssues = [issue],
+  userId = 'user-1',
+  handlers = {
+    onReturnIssue: vi.fn(),
+    onResolveIssue: vi.fn(),
+    onUpdateIssue: vi.fn(),
+  },
+) {
   return render(
     <IssuesPage
       workflows={[workflow]}
       scenarios={[scenario]}
-      issues={[issue]}
-      reporters={[reporter]}
+      issues={pageIssues}
+      reporters={[reporter, anotherReporter]}
       executionNotes={[executionNote]}
       roundName="جولة الاختبار"
-      roundIsActive={roundIsActive}
       isAdmin={isAdmin}
       busyAction=""
+      userId={userId}
       onOpenScenario={vi.fn()}
-      onTransition={onTransition}
+      onReturnIssue={handlers.onReturnIssue}
+      onResolveIssue={handlers.onResolveIssue}
+      onUpdateIssue={handlers.onUpdateIssue}
     />,
   )
 }
 
 describe('IssuesPage', () => {
-  it('lets admins return issues to testers only while the round is active', async () => {
+  it('lets admins return and resolve each individual issue report', async () => {
     const user = userEvent.setup()
-    const onTransition = vi.fn()
-    renderIssuesPage(true, true, onTransition)
+    const handlers = {
+      onReturnIssue: vi.fn(),
+      onResolveIssue: vi.fn(),
+      onUpdateIssue: vi.fn(),
+    }
+    renderIssuesPage(true, [issue, anotherIssue], 'admin-1', handlers)
 
-    await user.click(screen.getByRole('button', { name: 'إعادة للمختبِر للتعديل' }))
+    expect(screen.getByText(issue.report)).toBeInTheDocument()
+    expect(screen.getByText(anotherIssue.report)).toBeInTheDocument()
+    expect(screen.getByText('سارة أحمد')).toBeInTheDocument()
+    expect(screen.getByText('أحمد علي')).toBeInTheDocument()
 
-    expect(onTransition).toHaveBeenCalledWith(workflow, 'open')
+    const returnButtons = screen.getAllByRole('button', { name: 'إعادة للمبلّغ للتعديل' })
+    await user.click(returnButtons[0])
+    expect(handlers.onReturnIssue).toHaveBeenCalledWith(issue.id)
 
-    cleanup()
-    renderIssuesPage(true, false)
-    expect(screen.queryByRole('button', { name: 'إعادة للمختبِر للتعديل' })).not.toBeInTheDocument()
+    const resolveButtons = screen.getAllByRole('button', { name: 'تحديد كمحلول' })
+    await user.click(resolveButtons[1])
+    expect(handlers.onResolveIssue).toHaveBeenCalledWith(anotherIssue.id)
   })
 
-  it('shows the report author name and avatar', () => {
+  it('shows all report contents and author names to the team', () => {
     const { container } = renderIssuesPage(false)
 
     expect(screen.getByText('سارة أحمد')).toBeInTheDocument()
-    expect(screen.getByText('ملخص المشكلة')).toBeInTheDocument()
-    expect(screen.getByText('تعذر حفظ البيانات')).toBeInTheDocument()
+    expect(screen.getByText('تفاصيل البلاغ')).toBeInTheDocument()
+    expect(screen.getByText(issue.report)).toBeInTheDocument()
     expect(screen.queryByText('ملاحظات التنفيذ')).not.toBeInTheDocument()
     expect(screen.queryByText(executionNote.notes)).not.toBeInTheDocument()
-    expect(screen.queryByText(issue.report)).not.toBeInTheDocument()
     expect(container.querySelector('img[src="https://example.com/avatar.png"]')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'تصدير Excel' })).not.toBeInTheDocument()
+  })
+
+  it('allows only the report creator to edit a returned report', async () => {
+    const user = userEvent.setup()
+    const returnedIssue = { ...issue, status: 'returned' as const }
+    const handlers = {
+      onReturnIssue: vi.fn(),
+      onResolveIssue: vi.fn(),
+      onUpdateIssue: vi.fn(),
+    }
+    renderIssuesPage(false, [returnedIssue, anotherIssue], 'user-1', handlers)
+
+    expect(screen.getAllByRole('textbox', { name: 'تعديل بلاغك' })).toHaveLength(1)
+    await user.clear(screen.getByRole('textbox', { name: 'تعديل بلاغك' }))
+    await user.type(screen.getByRole('textbox', { name: 'تعديل بلاغك' }), 'تفاصيل أوضح للمشكلة')
+    await user.click(screen.getByRole('button', { name: 'حفظ التعديل وإعادة الإرسال' }))
+
+    expect(handlers.onUpdateIssue).toHaveBeenCalledWith(issue.id, 'تفاصيل أوضح للمشكلة')
   })
 
   it('lets admins select issue reports for Excel and PDF export', async () => {
@@ -115,14 +166,14 @@ describe('IssuesPage', () => {
 
     const excelButton = screen.getByRole('button', { name: 'تصدير Excel' })
     const pdfButton = screen.getByRole('button', { name: 'تصدير PDF' })
-    expect(screen.getByText('ملخص المشكلة')).toBeInTheDocument()
-    expect(screen.getByText('تعذر حفظ البيانات')).toBeInTheDocument()
+    expect(screen.getByText('تفاصيل البلاغ')).toBeInTheDocument()
+    expect(screen.getByText(workflow.issue_summary)).toBeInTheDocument()
     expect(screen.getByText('ملاحظات التنفيذ')).toBeInTheDocument()
     expect(screen.getByText(executionNote.notes)).toBeInTheDocument()
     expect(excelButton).toBeDisabled()
     expect(pdfButton).toBeDisabled()
 
-    await user.click(screen.getByRole('checkbox', { name: 'تحديد بلاغ حفظ طلب جديد' }))
+    await user.click(screen.getByRole('checkbox', { name: 'تحديد بلاغ سارة أحمد - حفظ طلب جديد' }))
 
     expect(excelButton).toBeEnabled()
     expect(pdfButton).toBeEnabled()
@@ -134,7 +185,7 @@ describe('IssuesPage', () => {
       [issue],
       [workflow],
       [scenario],
-      [reporter],
+      [reporter, anotherReporter],
       [executionNote],
       'جولة الاختبار',
     )
@@ -142,7 +193,7 @@ describe('IssuesPage', () => {
       [issue],
       [workflow],
       [scenario],
-      [reporter],
+      [reporter, anotherReporter],
       [executionNote],
       'جولة الاختبار',
     )

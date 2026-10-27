@@ -1,4 +1,4 @@
-import { formatDate, workflowLabels } from '../components/constants'
+import { formatDate, issueStatusLabels, workflowLabels } from '../components/constants'
 import type {
   IssueExecutionNote,
   IssueReporter,
@@ -27,8 +27,10 @@ export function buildIssueExportRows(
       السيناريو: scenario?.title ?? issue.scenario_id,
       النظام: scenario?.module ?? '',
       القسم: scenario?.section ?? '',
-      الحالة: workflow ? workflowLabels[workflow.status] : '',
-      'ملخص المشكلة': workflow?.issue_summary ?? '',
+      'حالة البلاغ': issueStatusLabels[issue.status],
+      'تفاصيل البلاغ': issue.report,
+      'حالة السيناريو': workflow ? workflowLabels[workflow.status] : '',
+      'ملخص المعالجة': workflow?.issue_summary ?? '',
       'ملاحظات التنفيذ': executionNote?.notes ?? '',
       'اسم المبلّغ': reporter?.display_name ?? 'مستخدم',
       'تاريخ البلاغ': formatDate(issue.created_at),

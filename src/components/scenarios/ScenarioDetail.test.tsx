@@ -27,7 +27,7 @@ const scenario: RoundScenario = {
 const workflow: RoundWorkflow = {
   round_id: scenario.round_id,
   scenario_id: scenario.scenario_id,
-  status: 'open',
+  status: 'has_issues',
   assigned_to: null,
   issue_summary: null,
   updated_at: '2026-10-26T10:00:00Z',
@@ -50,6 +50,7 @@ function renderScenarioDetail(onReportIssue = vi.fn()) {
       workflow={workflow}
       execution={execution}
       issues={[]}
+      ownIssueStatus={null}
       isAdmin={false}
       canExecute
       busyAction=""
@@ -69,20 +70,17 @@ function renderScenarioDetail(onReportIssue = vi.fn()) {
 }
 
 describe('ScenarioDetail issue reporting', () => {
-  it('explains that reporting closes the scenario and submits only after confirmation', async () => {
+  it('lets a failed tester report an issue without closing the shared scenario', async () => {
     const user = userEvent.setup()
     const onReportIssue = vi.fn()
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const confirm = vi.spyOn(window, 'confirm')
     renderScenarioDetail(onReportIssue)
 
-    const reportButton = screen.getByRole('button', { name: 'إرسال المشكلة وإغلاق السيناريو' })
+    const reportButton = screen.getByRole('button', { name: 'إرسال بلاغ المشكلة' })
     await user.click(reportButton)
 
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('إغلاق سيناريو الاختبار في هذه الجولة'))
-    expect(onReportIssue).not.toHaveBeenCalled()
-
-    confirm.mockReturnValue(true)
-    await user.click(reportButton)
+    expect(confirm).not.toHaveBeenCalled()
     expect(onReportIssue).toHaveBeenCalledOnce()
+    expect(screen.getByText('البلاغ خاص بنتيجتك ولا يوقف تنفيذ السيناريو لبقية الفريق.')).toBeInTheDocument()
   })
 })

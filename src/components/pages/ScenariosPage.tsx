@@ -1,5 +1,6 @@
 import type {
   ExecutionStatus,
+  IssueStatus,
   RoundScenario,
   RoundWorkflow,
   ScenarioExecution,
@@ -28,6 +29,7 @@ export interface ScenariosPageProps {
   currentWorkflow: RoundWorkflow | undefined
   currentExecution: ScenarioExecution | undefined
   selectedIssues: ScenarioIssue[]
+  ownIssueStatus: IssueStatus | null
   isAdmin: boolean
   canExecute: boolean
   busyAction: string
@@ -63,6 +65,7 @@ export function ScenariosPage({
   currentWorkflow,
   currentExecution,
   selectedIssues,
+  ownIssueStatus,
   isAdmin,
   canExecute,
   busyAction,
@@ -102,6 +105,7 @@ export function ScenariosPage({
         workflow={currentWorkflow}
         execution={currentExecution}
         issues={selectedIssues}
+        ownIssueStatus={ownIssueStatus}
         isAdmin={isAdmin}
         canExecute={canExecute}
         busyAction={busyAction}

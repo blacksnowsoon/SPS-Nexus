@@ -14,6 +14,7 @@ const issue: ScenarioIssue = {
   scenario_id: 'scenario-1',
   reported_by: 'user-1',
   report: '<script>alert("x")</script>',
+  status: 'open',
   created_at: '2026-10-26T10:00:00Z',
 }
 
@@ -58,15 +59,15 @@ afterEach(() => {
 })
 
 describe('issue exports', () => {
-  it('exports summary and execution notes separately without repeating the report text', () => {
+  it('exports each user report separately with its status and execution notes', () => {
     const [row] = buildIssueExportRows([issue], [workflow], [scenario], [reporter], [executionNote])
 
     expect(row).toMatchObject({
-      'ملخص المشكلة': 'تعذر الحفظ',
+      'حالة البلاغ': 'مفتوح',
+      'تفاصيل البلاغ': issue.report,
+      'ملخص المعالجة': 'تعذر الحفظ',
       'ملاحظات التنفيذ': executionNote.notes,
     })
-    expect(row).not.toHaveProperty('تفاصيل البلاغ')
-    expect(Object.values(row)).not.toContain(issue.report)
   })
 
   it('creates a downloadable XLSX workbook', async () => {
@@ -113,11 +114,12 @@ describe('issue exports', () => {
 
     const html = write.mock.calls[0][0]
     expect(html).toContain('<html lang="ar" dir="rtl">')
-    expect(html).toContain('ملخص المشكلة')
+    expect(html).toContain('تفاصيل البلاغ')
+    expect(html).toContain('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;')
     expect(html).toContain('تعذر الحفظ')
     expect(html).toContain('ملاحظات التنفيذ')
     expect(html).toContain(executionNote.notes)
-    expect(html).not.toContain('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;')
+    expect(html).not.toContain('<script>alert("x")</script>')
     expect(html).toContain('سارة أحمد')
   })
 })

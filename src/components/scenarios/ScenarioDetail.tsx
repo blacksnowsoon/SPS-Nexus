@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { isEditableWorkflow, nextWorkflowStatus } from '../../lib/checklist'
 import type {
   ExecutionStatus,
+  IssueStatus,
   RoundScenario,
   RoundWorkflow,
   ScenarioExecution,
@@ -21,6 +22,7 @@ export interface ScenarioDetailProps {
   workflow: RoundWorkflow | undefined
   execution: ScenarioExecution | undefined
   issues: ScenarioIssue[]
+  ownIssueStatus: IssueStatus | null
   isAdmin: boolean
   canExecute: boolean
   busyAction: string
@@ -61,6 +63,7 @@ export function ScenarioDetail({
   workflow,
   execution,
   issues,
+  ownIssueStatus,
   isAdmin,
   canExecute,
   busyAction,
@@ -246,7 +249,7 @@ export function ScenarioDetail({
               </p>
             )}
 
-            {canExecute && workflow?.status === 'open' && currentStatus === 'failed' && (
+            {canExecute && currentStatus === 'failed' && ownIssueStatus === null && (
               <div className="border-t border-slate-200 pt-3 mt-3">
                 <label className="block text-xs font-semibold text-rose-800">
                   إبلاغ عن مشكلة
@@ -260,26 +263,30 @@ export function ScenarioDetail({
                 </label>
                 <button
                   className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        'سيؤدي إرسال بلاغ المشكلة إلى إغلاق سيناريو الاختبار في هذه الجولة يمكن اعادة فتح السيناريو من خلال مدير الجولة. هل تريد المتابعة؟',
-                      )
-                    ) {
-                      onReportIssue()
-                    }
-                  }}
+                  onClick={onReportIssue}
                   disabled={!issueDraft.trim() || busyAction === 'issue'}
                 >
-                  {busyAction === 'issue' ? 'جارٍ الإرسال…' : 'إرسال المشكلة وإغلاق السيناريو'}
+                  {busyAction === 'issue' ? 'جارٍ الإرسال…' : 'إرسال بلاغ المشكلة'}
                 </button>
                 <small className="block text-[10px] text-slate-400 mt-1 leading-relaxed">
-                  إرسال البلاغ ينقل حالة السيناريو إلى «لديه مشكلة» ويوقف التنفيذ مؤقتًا.
+                  البلاغ خاص بنتيجتك ولا يوقف تنفيذ السيناريو لبقية الفريق.
                 </small>
               </div>
             )}
 
-            {canExecute && workflow?.status === 'open' && currentStatus !== 'failed' && (
+            {canExecute && currentStatus === 'failed' && ownIssueStatus === 'open' && (
+              <p className="text-[11px] text-emerald-700 mt-2">
+                تم إرسال بلاغك، ويمكن لبقية الفريق مواصلة اختبار السيناريو.
+              </p>
+            )}
+
+            {canExecute && currentStatus === 'failed' && ownIssueStatus === 'returned' && (
+              <p className="text-[11px] text-amber-700 mt-2">
+                أعاد المسؤول بلاغك للتعديل. افتح صفحة متابعة المشكلات لتحديثه.
+              </p>
+            )}
+
+            {canExecute && currentStatus !== 'failed' && (
               <p className="text-[11px] text-slate-400 mt-2">
                 لتسجيل بلاغ مشكلة، سجّل النتيجة «فشل» لهذا السيناريو أولًا.
               </p>
@@ -292,9 +299,18 @@ export function ScenarioDetail({
               <div className="space-y-2">
                 {issues.map((issue) => (
                   <article key={issue.id} className="border border-rose-100 bg-rose-50/40 rounded-xl p-3">
-                    <small className="text-[10px] text-slate-400 font-medium block mb-1">
-                      {formatDate(issue.created_at)}
-                    </small>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <small className="text-[10px] text-slate-400 font-medium">
+                        {formatDate(issue.created_at)}
+                      </small>
+                      <small className="text-[10px] text-slate-500">
+                        {issue.status === 'returned'
+                          ? 'مُعاد للمبلّغ'
+                          : issue.status === 'resolved'
+                            ? 'تم الحل'
+                            : 'مفتوح'}
+                      </small>
+                    </div>
                     <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{issue.report}</p>
                   </article>
                 ))}
@@ -318,7 +334,7 @@ export function ScenarioDetail({
 
           {workflow?.status === 'closed' && (
             <p className="text-xs text-slate-500 bg-slate-100 rounded-lg p-2.5 mt-3">
-              تم إغلاق هذه المشكلة. السيناريو محفوظ في سجل الجولة.
+              أُغلقت متابعة السيناريو. يمكنك تسجيل نتيجتك ما دامت الجولة نشطة.
             </p>
           )}
         </>

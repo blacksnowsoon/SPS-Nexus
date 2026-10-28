@@ -233,7 +233,7 @@ export function ScenarioDetail({
             <label className="block mt-3 text-xs font-semibold text-slate-700">
               ملاحظاتك
               <textarea
-                rows={3}
+                rows={15}
                 value={notes}
                 disabled={!canExecute}
                 onChange={(event) => setNotes(event.target.value)}
@@ -258,7 +258,7 @@ export function ScenarioDetail({
                 <label className="block text-xs font-semibold text-rose-800">
                   إبلاغ عن مشكلة
                   <textarea
-                    rows={2}
+                    rows={10}
                     value={issueDraft}
                     onChange={(event) => onIssueDraftChange(event.target.value)}
                     placeholder="صف المشكلة التي واجهتها…"

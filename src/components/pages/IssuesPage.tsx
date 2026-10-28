@@ -133,9 +133,9 @@ export function IssuesPage({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center flex-wrap gap-2 p-1 sm:p-2 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
+      <div className="flex justify-around items-center flex-wrap  p-2 sm:p-1 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
         {isAdmin && (
-        <div className="flex items-center flex-wrap gap-2 p-1 sm:p-2.5 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
+        <div className="flex items-center  flex-wrap gap-2 p-1 sm:p-1 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
           <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
             <input
               type="checkbox"
@@ -155,7 +155,7 @@ export function IssuesPage({
           </label>
           <span className="text-xs text-slate-400 ms-auto">تم تحديد {selectedIssues.length}</span>
           <button
-            className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
+            className="inline-flex items-center justify-center px-2 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
             disabled={selectedIssues.length === 0 || exporting}
             onClick={() => void handleExport('excel')}
           >
@@ -176,7 +176,7 @@ export function IssuesPage({
         </div>
       )}
 
-        <div className="flex items-center flex-wrap gap-3 p-3 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
+        <div className="flex items-center flex-wrap gap-2 p-1 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
           <label htmlFor="issue-search" className="text-xs font-semibold text-slate-700">
             البحث في البلاغات
           </label>

@@ -133,9 +133,9 @@ export function IssuesPage({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center flex-wrap gap-2.5 p-1 sm:p-2 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
+      <div className="flex items-center flex-wrap gap-2 p-1 sm:p-2 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
         {isAdmin && (
-        <div className="flex items-center flex-wrap gap-2.5 p-3 sm:p-3.5 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
+        <div className="flex items-center flex-wrap gap-2 p-1 sm:p-2.5 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
           <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
             <input
               type="checkbox"

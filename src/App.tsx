@@ -158,9 +158,7 @@ function App() {
       supabase.from('scenario_executions').select('*').eq('round_id', roundId),
       supabase.from('scenario_issues').select('*').eq('round_id', roundId).order('created_at', { ascending: false }),
       supabase.rpc('issue_reporters', { p_round_id: roundId }),
-      isAdmin
-        ? supabase.rpc('issue_execution_notes', { p_round_id: roundId })
-        : Promise.resolve({ data: [] as IssueExecutionNote[], error: null }),
+      supabase.rpc('issue_execution_notes', { p_round_id: roundId }),
     ])
     const queryError =
       scenarioResult.error ??
@@ -187,7 +185,7 @@ function App() {
     setIssueReporters(reporterResult.data ?? [])
     setIssueExecutionNotes(executionNotesResult.data ?? [])
     setWorkspaceLoading(false)
-  }, [isAdmin])
+  }, [])
 
   const loadWorkspace = useCallback(async () => {
     if (!supabase || !user || profile?.status !== 'active') return

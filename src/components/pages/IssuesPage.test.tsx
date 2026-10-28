@@ -42,6 +42,14 @@ const scenario: RoundScenario = {
   removed_at: null,
 }
 
+const anotherScenario: RoundScenario = {
+  ...scenario,
+  scenario_id: 'scenario-2',
+  module: 'المالية',
+  source_number: 2,
+  title: 'اعتماد فاتورة',
+}
+
 const issue: ScenarioIssue = {
   id: 'issue-1',
   round_id: 'round-1',
@@ -86,11 +94,12 @@ function renderIssuesPage(
     onResolveIssue: vi.fn(),
     onUpdateIssue: vi.fn(),
   },
+  pageScenarios = [scenario],
 ) {
   return render(
     <IssuesPage
       workflows={[workflow]}
-      scenarios={[scenario]}
+      scenarios={pageScenarios}
       issues={pageIssues}
       reporters={[reporter, anotherReporter]}
       executionNotes={[executionNote]}
@@ -130,16 +139,37 @@ describe('IssuesPage', () => {
     expect(handlers.onResolveIssue).toHaveBeenCalledWith(anotherIssue.id)
   })
 
-  it('shows all report contents and author names to the team', () => {
+  it('shows all report contents, author names, and execution notes to the team', () => {
     const { container } = renderIssuesPage(false)
 
     expect(screen.getByText('سارة أحمد')).toBeInTheDocument()
     expect(screen.getByText('تفاصيل البلاغ')).toBeInTheDocument()
     expect(screen.getByText(issue.report)).toBeInTheDocument()
-    expect(screen.queryByText('ملاحظات التنفيذ')).not.toBeInTheDocument()
-    expect(screen.queryByText(executionNote.notes)).not.toBeInTheDocument()
+    expect(screen.getByText('ملاحظات التنفيذ')).toBeInTheDocument()
+    expect(screen.getByText(executionNote.notes)).toBeInTheDocument()
     expect(container.querySelector('img[src="https://example.com/avatar.png"]')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'تصدير Excel' })).not.toBeInTheDocument()
+  })
+
+  it('filters issue cards by scenario module', async () => {
+    const user = userEvent.setup()
+    const issueInAnotherModule = { ...anotherIssue, scenario_id: 'scenario-2' }
+    renderIssuesPage(
+      false,
+      [issue, issueInAnotherModule],
+      'user-1',
+      undefined,
+      [scenario, anotherScenario],
+    )
+
+    expect(screen.getByText(issue.report)).toBeInTheDocument()
+    expect(screen.getByText(issueInAnotherModule.report)).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'تصفية بلاغات المشكلات حسب النظام' }), 'المالية')
+
+    expect(screen.queryByText(issue.report)).not.toBeInTheDocument()
+    expect(screen.getByText(issueInAnotherModule.report)).toBeInTheDocument()
+    expect(screen.getByText('عرض 1 من 2 بلاغ')).toBeInTheDocument()
   })
 
   it('allows only the report creator to edit a returned report', async () => {

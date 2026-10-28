@@ -46,14 +46,35 @@ export function IssuesPage({
   onUpdateIssue,
 }: IssuesPageProps) {
   const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([])
+  const [moduleFilter, setModuleFilter] = useState('')
   const [reportDrafts, setReportDrafts] = useState<Record<string, string>>({})
   const [exportError, setExportError] = useState('')
   const [exporting, setExporting] = useState(false)
+  const issueModules = useMemo(
+    () =>
+      [...new Set(
+        issues
+          .map((issue) => scenarios.find((scenario) => scenario.scenario_id === issue.scenario_id)?.module)
+          .filter((module): module is string => Boolean(module)),
+      )].sort((first, second) => first.localeCompare(second)),
+    [issues, scenarios],
+  )
+  const visibleIssues = useMemo(
+    () =>
+      moduleFilter
+        ? issues.filter(
+            (issue) =>
+              scenarios.find((scenario) => scenario.scenario_id === issue.scenario_id)?.module === moduleFilter,
+          )
+        : issues,
+    [issues, moduleFilter, scenarios],
+  )
   const selectedIssues = useMemo(
     () => issues.filter((issue) => selectedIssueIds.includes(issue.id)),
     [issues, selectedIssueIds],
   )
-  const allSelected = issues.length > 0 && issues.every((issue) => selectedIssueIds.includes(issue.id))
+  const allVisibleSelected =
+    visibleIssues.length > 0 && visibleIssues.every((issue) => selectedIssueIds.includes(issue.id))
 
   const toggleIssue = (issueId: string, checked: boolean) => {
     setSelectedIssueIds((current) =>
@@ -88,20 +109,26 @@ export function IssuesPage({
   }
 
   return (
-    <div className="space-y-4">
-      {isAdmin && (
+    <div className="space-y-2">
+      <div className="flex items-center flex-wrap gap-2.5 p-1 sm:p-2 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
+        {isAdmin && (
         <div className="flex items-center flex-wrap gap-2.5 p-3 sm:p-3.5 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
           <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
             <input
               type="checkbox"
-              checked={allSelected}
+              checked={allVisibleSelected}
               onChange={(event) =>
-                setSelectedIssueIds(event.target.checked ? issues.map((issue) => issue.id) : [])
+                setSelectedIssueIds((current) => {
+                  const visibleIds = new Set(visibleIssues.map((issue) => issue.id))
+                  return event.target.checked
+                    ? [...new Set([...current, ...visibleIds])]
+                    : current.filter((id) => !visibleIds.has(id))
+                })
               }
-              aria-label="تحديد كل البلاغات"
+              aria-label="تحديد كل البلاغات المعروضة"
               className="accent-blue-600 w-4 h-4 rounded"
             />
-            <span>تحديد الكل ({issues.length})</span>
+            <span>تحديد الكل ({visibleIssues.length})</span>
           </label>
           <span className="text-xs text-slate-400 ms-auto">تم تحديد {selectedIssues.length}</span>
           <button
@@ -126,8 +153,37 @@ export function IssuesPage({
         </div>
       )}
 
+        <div className="flex items-center gap-3 p-3 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
+          
+          
+          <label htmlFor="issue-module-filter" className="text-xs font-semibold text-slate-700">
+            تصفية حسب النظام
+          </label>
+          <select
+            id="issue-module-filter"
+            aria-label="تصفية بلاغات المشكلات حسب النظام"
+            value={moduleFilter}
+            onChange={(event) => setModuleFilter(event.target.value)}
+            className="min-w-[180px] border border-slate-200 bg-white rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          >
+            <option value="">كل الأنظمة</option>
+            {issueModules.map((module) => (
+              <option key={module} value={module}>{module}</option>
+            ))}
+          </select>
+          <span className="text-xs text-slate-400 ms-auto">
+            عرض {visibleIssues.length} من {issues.length} بلاغ
+          </span>
+        </div>
+      </div>
+
+      
+
+      {visibleIssues.length === 0 ? (
+        <EmptyState title="لا توجد بلاغات لهذا النظام" body="اختر نظامًا آخر أو اعرض كل الأنظمة." />
+      ) : (
       <section className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        {issues.map((issue) => {
+        {visibleIssues.map((issue) => {
           const scenario = scenarios.find((item) => item.scenario_id === issue.scenario_id)
           const workflow = workflows.find((item) => item.scenario_id === issue.scenario_id)
           const reporter = reporters.find((item) => item.id === issue.reported_by)
@@ -191,20 +247,20 @@ export function IssuesPage({
                   </div>
 
                   <div className="pt-2 border-t border-rose-200/60">
-                    <strong className="text-[10px] font-bold text-rose-800 block">تفاصيل البلاغ</strong>
+                    <strong className="text-[12px] font-bold text-rose-800 block">تفاصيل البلاغ</strong>
                     <p className="text-xs text-slate-700 mt-0.5 whitespace-pre-wrap">{issue.report}</p>
                   </div>
 
                   {workflow?.issue_summary && (
                     <div className="pt-2 border-t border-rose-200/60">
-                      <strong className="text-[10px] font-bold text-rose-800 block">ملخص المعالجة</strong>
+                      <strong className="text-[12px] font-bold text-rose-800 block">ملخص المعالجة</strong>
                       <p className="text-xs text-slate-700 mt-0.5">{workflow.issue_summary}</p>
                     </div>
                   )}
 
-                  {isAdmin && executionNote?.notes && (
+                  {executionNote?.notes && (
                     <div className="pt-2 border-t border-rose-200/60">
-                      <strong className="text-[10px] font-bold text-slate-700 block">ملاحظات التنفيذ</strong>
+                      <strong className="text-[12px] font-bold text-slate-700 block">ملاحظات التنفيذ</strong>
                       <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{executionNote.notes}</p>
                     </div>
                   )}
@@ -264,6 +320,7 @@ export function IssuesPage({
           )
         })}
       </section>
+      )}
     </div>
   )
 }

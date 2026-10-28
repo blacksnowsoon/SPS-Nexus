@@ -172,6 +172,26 @@ describe('IssuesPage', () => {
     expect(screen.getByText('عرض 1 من 2 بلاغ')).toBeInTheDocument()
   })
 
+  it('searches issue details and combines search with the module filter', async () => {
+    const user = userEvent.setup()
+    const issueInAnotherModule = { ...anotherIssue, scenario_id: 'scenario-2' }
+    renderIssuesPage(
+      false,
+      [issue, issueInAnotherModule],
+      'user-1',
+      undefined,
+      [scenario, anotherScenario],
+    )
+
+    await user.type(screen.getByRole('searchbox', { name: 'البحث في البلاغات' }), 'حسابي')
+    expect(screen.queryByText(issue.report)).not.toBeInTheDocument()
+    expect(screen.getByText(issueInAnotherModule.report)).toBeInTheDocument()
+    expect(screen.getByText('عرض 1 من 2 بلاغ')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'تصفية بلاغات المشكلات حسب النظام' }), 'المشتريات')
+    expect(screen.getByText('لا توجد بلاغات تطابق البحث')).toBeInTheDocument()
+  })
+
   it('allows only the report creator to edit a returned report', async () => {
     const user = userEvent.setup()
     const returnedIssue = { ...issue, status: 'returned' as const }

@@ -79,6 +79,20 @@ function escapeHtml(value: string): string {
   })
 }
 
+const pdfColumnClasses: Record<string, string> = {
+  'رقم السيناريو': 'scenario-number-column',
+  السيناريو: 'scenario-column',
+  النظام: 'module-column',
+  القسم: 'section-column',
+  'حالة البلاغ': 'issue-status-column',
+  'تفاصيل البلاغ': 'report-column',
+  'حالة السيناريو': 'workflow-status-column',
+  'ملخص المعالجة': 'summary-column',
+  'ملاحظات التنفيذ': 'execution-notes-column',
+  'اسم المبلّغ': 'reporter-column',
+  'تاريخ البلاغ': 'date-column',
+}
+
 export function exportIssuesToPdf(
   issues: ScenarioIssue[],
   workflows: RoundWorkflow[],
@@ -93,12 +107,17 @@ export function exportIssuesToPdf(
   const rows = buildIssueExportRows(issues, workflows, scenarios, reporters, executionNotes)
   const headers = Object.keys(rows[0] ?? {})
   const table = [
-    `<thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>`,
+    `<thead><tr>${headers
+      .map((header) => `<th class="${pdfColumnClasses[header]}">${escapeHtml(header)}</th>`)
+      .join('')}</tr></thead>`,
     `<tbody>${rows
       .map(
         (row) =>
           `<tr>${headers
-            .map((header) => `<td>${escapeHtml(String(row[header as keyof typeof row] ?? ''))}</td>`)
+            .map(
+              (header) =>
+                `<td class="${pdfColumnClasses[header]}">${escapeHtml(String(row[header as keyof typeof row] ?? ''))}</td>`,
+            )
             .join('')}</tr>`,
       )
       .join('')}</tbody>`,
@@ -115,9 +134,17 @@ export function exportIssuesToPdf(
           body { font-family: Arial, sans-serif; color: #1d2939; padding: 24px; }
           h1 { font-size: 20px; margin: 0 0 8px; }
           p { color: #667085; margin: 0 0 20px; }
-          table { border-collapse: collapse; width: 100%; font-size: 11px; }
-          th, td { border: 1px solid #d0d5dd; padding: 8px; text-align: right; vertical-align: top; }
+          table { border-collapse: collapse; table-layout: fixed; width: 100%; font-size: 11px; }
+          th, td { border: 1px solid #d0d5dd; padding: 6px; text-align: right; vertical-align: top; overflow-wrap: anywhere; }
+          .scenario-number-column { width: 3%; }
+          .summary-column, .scenario-column { width: 10%; }
+          .module-column, .section-column, .issue-status-column, .workflow-status-column { width: 5%; }
+          .report-column { width: 20%; }
+          .execution-notes-column { width: 20%; }
+          .reporter-column { width: 7%; }
+          .date-column { width: 5%; }
           th { background: #f2f4f7; }
+          @page { size: landscape; }
           @media print { body { padding: 0; } tr { break-inside: avoid; } }
         </style>
       </head>

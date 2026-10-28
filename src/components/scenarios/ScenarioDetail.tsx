@@ -224,6 +224,10 @@ export function ScenarioDetail({
                   </button>
                 )
               })}
+                <span className={"text-[9px] text-center text-green-500"}>في حالة نجاح جميع الخطوات الرئيسية والفرعية اللازمة لتنفيذ السيناريو 100% </span>
+                <span className={"text-[9px] text-center text-red-500"}>في حالة اكتشاف اي خطأ اثناء تنفيذ الخطوات قد تؤثر علي الدورة بصورة مباشرة او غير مباشرة</span>
+                <span className={"text-[9px] text-center text-neutral"}>في حالة اختلاف خطواط الاختبار عن الواقع</span>
+              
             </div>
 
             <label className="block mt-3 text-xs font-semibold text-slate-700">

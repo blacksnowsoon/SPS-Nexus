@@ -47,6 +47,7 @@ export function IssuesPage({
 }: IssuesPageProps) {
   const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([])
   const [moduleFilter, setModuleFilter] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [reportDrafts, setReportDrafts] = useState<Record<string, string>>({})
   const [exportError, setExportError] = useState('')
   const [exporting, setExporting] = useState(false)
@@ -60,14 +61,36 @@ export function IssuesPage({
     [issues, scenarios],
   )
   const visibleIssues = useMemo(
-    () =>
-      moduleFilter
-        ? issues.filter(
-            (issue) =>
-              scenarios.find((scenario) => scenario.scenario_id === issue.scenario_id)?.module === moduleFilter,
-          )
-        : issues,
-    [issues, moduleFilter, scenarios],
+    () => {
+      const normalizedQuery = searchQuery.trim().toLocaleLowerCase()
+
+      return issues.filter((issue) => {
+        const scenario = scenarios.find((item) => item.scenario_id === issue.scenario_id)
+        const reporter = reporters.find((item) => item.id === issue.reported_by)
+        const workflow = workflows.find((item) => item.scenario_id === issue.scenario_id)
+        const executionNote = executionNotes.find(
+          (item) => item.scenario_id === issue.scenario_id && item.user_id === issue.reported_by,
+        )
+        const matchesModule = !moduleFilter || scenario?.module === moduleFilter
+        const searchableText = [
+          issue.report,
+          scenario?.title,
+          scenario?.module,
+          scenario?.section,
+          reporter?.display_name,
+          issueStatusLabels[issue.status],
+          formatDate(issue.created_at),
+          workflow?.issue_summary,
+          executionNote?.notes,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLocaleLowerCase()
+
+        return matchesModule && (!normalizedQuery || searchableText.includes(normalizedQuery))
+      })
+    },
+    [executionNotes, issues, moduleFilter, reporters, scenarios, searchQuery, workflows],
   )
   const selectedIssues = useMemo(
     () => issues.filter((issue) => selectedIssueIds.includes(issue.id)),
@@ -153,9 +176,19 @@ export function IssuesPage({
         </div>
       )}
 
-        <div className="flex items-center gap-3 p-3 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
-          
-          
+        <div className="flex items-center flex-wrap gap-3 p-3 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
+          <label htmlFor="issue-search" className="text-xs font-semibold text-slate-700">
+            البحث في البلاغات
+          </label>
+          <input
+            id="issue-search"
+            type="search"
+            aria-label="البحث في البلاغات"
+            placeholder="ابحث في التفاصيل أو السيناريو أو المبلّغ"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="min-w-[220px] flex-1 border border-slate-200 bg-white rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          />
           <label htmlFor="issue-module-filter" className="text-xs font-semibold text-slate-700">
             تصفية حسب النظام
           </label>
@@ -171,7 +204,7 @@ export function IssuesPage({
               <option key={module} value={module}>{module}</option>
             ))}
           </select>
-          <span className="text-xs text-slate-400 ms-auto">
+          <span className="text-xs text-slate-400">
             عرض {visibleIssues.length} من {issues.length} بلاغ
           </span>
         </div>
@@ -180,7 +213,10 @@ export function IssuesPage({
       
 
       {visibleIssues.length === 0 ? (
-        <EmptyState title="لا توجد بلاغات لهذا النظام" body="اختر نظامًا آخر أو اعرض كل الأنظمة." />
+        <EmptyState
+          title={searchQuery.trim() ? 'لا توجد بلاغات تطابق البحث' : 'لا توجد بلاغات لهذا النظام'}
+          body="غيّر كلمات البحث أو اختر نظامًا آخر."
+        />
       ) : (
       <section className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {visibleIssues.map((issue) => {

@@ -257,6 +257,10 @@ function App() {
 
   const saveExecution = async (scenario: RoundScenario, status: ExecutionStatus, notes: string) => {
     if (!supabase || !user || !selectedRound || !canExecute) return
+    const ownIssueStatus = issues.find(
+      (issue) => issue.scenario_id === scenario.scenario_id && issue.reported_by === user.id && issue.status !== 'resolved',
+    )?.status
+    if (ownIssueStatus && ownIssueStatus !== 'returned') return
     setBusyAction(`execution-${scenario.scenario_id}`)
     setError('')
     const { data, error: saveError } = await supabase
@@ -595,6 +599,11 @@ function App() {
   const selectedIssues = issues.filter((issue) => issue.scenario_id === selectedScenarioId)
   const ownIssueStatus =
     selectedIssues.find((issue) => issue.reported_by === user?.id && issue.status !== 'resolved')?.status ?? null
+  const ownIssueStatuses = Object.fromEntries(
+    issues
+      .filter((issue) => issue.reported_by === user?.id && issue.status !== 'resolved')
+      .map((issue) => [issue.scenario_id, issue.status]),
+  )
 
   return (
     <div className="min-h-screen bg-slate-50/60 text-slate-800" dir="rtl">
@@ -756,6 +765,7 @@ function App() {
               scenarios={visibleScenarios}
               workflows={workflows}
               ownExecutions={ownExecutions}
+              ownIssueStatuses={ownIssueStatuses}
               selectedScenarioId={selectedScenarioId}
               onSelectScenario={selectScenario}
               search={search}

@@ -260,7 +260,13 @@ export function IssuesPage({
                   {scenario?.title ?? issue.scenario_id}
                 </h2>
                 <p className="text-[10px] text-slate-400 font-medium">
-                  {scenario?.module} · {scenario?.section}
+                  {scenario?.module} · {scenario?.section} 
+                  {scenario?.category && (
+                      <>
+                        {' '}
+                        <span className="text-slate-300">·</span> {scenario.category}
+                      </>
+                    )}
                 </p>
 
                 <div className="border-s-4 border-rose-300 bg-rose-50/50 p-3 rounded-lg mt-3 space-y-2">

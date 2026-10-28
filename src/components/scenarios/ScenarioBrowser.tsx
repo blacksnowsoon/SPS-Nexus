@@ -1,4 +1,4 @@
-import type { RoundScenario, RoundWorkflow, ScenarioExecution } from '../../types'
+import type { IssueStatus, RoundScenario, RoundWorkflow, ScenarioExecution } from '../../types'
 import { EmptyState } from '../common/EmptyState'
 import {
   statusDotClasses,
@@ -11,6 +11,7 @@ export interface ScenarioBrowserProps {
   scenarios: RoundScenario[]
   workflows: RoundWorkflow[]
   executions: ScenarioExecution[]
+  ownIssueStatuses: Record<string, IssueStatus>
   selectedScenarioId: string
   onSelectScenario: (scenarioId: string) => void
   search: string
@@ -28,6 +29,7 @@ export function ScenarioBrowser({
   scenarios,
   workflows,
   executions,
+  ownIssueStatuses,
   selectedScenarioId,
   onSelectScenario,
   search,
@@ -109,6 +111,7 @@ export function ScenarioBrowser({
           {scenarios.map((scenario) => {
             const workflow = workflows.find((item) => item.scenario_id === scenario.scenario_id)
             const execution = executions.find((item) => item.scenario_id === scenario.scenario_id)
+            const ownIssueStatus = ownIssueStatuses[scenario.scenario_id]
             const isSelected = selectedScenarioId === scenario.scenario_id
             const wStatus = workflow?.status ?? 'open'
             const eStatus = execution?.status ?? 'not_tested'
@@ -141,13 +144,27 @@ export function ScenarioBrowser({
                 </span>
 
                 <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold max-w-[90px] truncate ${workflowBadgeClasses[wStatus]}`}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold max-w-22.5 truncate ${workflowBadgeClasses[wStatus]}`}
                 >
                   {workflowLabels[wStatus]}
                 </span>
 
+                {ownIssueStatus && ownIssueStatus !== 'resolved' && (
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold max-w-22.5 truncate ${
+                      ownIssueStatus === 'open'
+                        ? 'bg-slate-100 text-slate-700 border border-slate-300'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                    }`}
+                    title={ownIssueStatus === 'open' ? 'نتيجة التنفيذ وملاحظاته مقفلة' : 'أعاد المسؤول البلاغ للتعديل'}
+                    aria-label={ownIssueStatus === 'open' ? 'حالة البلاغ: التنفيذ مغلق' : 'حالة البلاغ: للتعديل'}
+                  >
+                    {ownIssueStatus === 'open' ? 'التنفيذ مغلق' : 'للتعديل'}
+                  </span>
+                )}
+
                 <span
-                  className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDotClasses[eStatus]}`}
+                  className={`w-2 h-2 rounded-full shrink-0 ${statusDotClasses[eStatus]}`}
                   title={statusLabels[eStatus]}
                 />
               </button>

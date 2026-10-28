@@ -96,6 +96,7 @@ export function ScenarioDetail({
   const currentStatus = execution?.status ?? 'not_tested'
   const wStatus = workflow?.status ?? 'open'
   const nextStatus = workflow ? nextWorkflowStatus(workflow.status) : null
+  const canEditExecution = canExecute && (ownIssueStatus === null || ownIssueStatus === 'returned')
 
   return (
     <aside className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs min-h-[500px]">
@@ -214,7 +215,7 @@ export function ScenarioDetail({
                     className={`flex items-center justify-center gap-1.5 border rounded-xl py-2 px-1 text-xs transition-all ${
                       isChosen ? pillStyle.chosen : pillStyle.default
                     }`}
-                    disabled={!canExecute || busyAction === `execution-${scenario.scenario_id}`}
+                    disabled={!canEditExecution || busyAction === `execution-${scenario.scenario_id}`}
                     onClick={() => onSaveExecution(isChosen ? 'not_tested' : status, notes)}
                   >
                     <span className="font-bold text-xs">
@@ -235,10 +236,10 @@ export function ScenarioDetail({
               <textarea
                 rows={15}
                 value={notes}
-                disabled={!canExecute}
+                disabled={!canEditExecution}
                 onChange={(event) => setNotes(event.target.value)}
                 onBlur={() => {
-                  if (canExecute && notes !== (execution?.notes ?? '')) {
+                  if (canEditExecution && notes !== (execution?.notes ?? '')) {
                     onSaveExecution(currentStatus, notes)
                   }
                 }}
@@ -250,6 +251,12 @@ export function ScenarioDetail({
             {!canExecute && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200/60 rounded-lg p-2.5 mt-2.5">
                 التنفيذ مقفل لأن الجولة غير نشطة أو السيناريو لديه مشكلة.
+              </p>
+            )}
+
+            {canExecute && ownIssueStatus === 'open' && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200/60 rounded-lg p-2.5 mt-2.5">
+                تم إرسال بلاغك، لذلك تم قفل نتيجة التنفيذ وملاحظاته حتى يعيد المسؤول البلاغ للتعديل.
               </p>
             )}
 
@@ -278,19 +285,13 @@ export function ScenarioDetail({
               </div>
             )}
 
-            {canExecute && currentStatus === 'failed' && ownIssueStatus === 'open' && (
-              <p className="text-[11px] text-emerald-700 mt-2">
-                تم إرسال بلاغك، ويمكن لبقية الفريق مواصلة اختبار السيناريو.
-              </p>
-            )}
-
-            {canExecute && currentStatus === 'failed' && ownIssueStatus === 'returned' && (
+            {canExecute && ownIssueStatus === 'returned' && (
               <p className="text-[11px] text-amber-700 mt-2">
-                أعاد المسؤول بلاغك للتعديل. افتح صفحة متابعة المشكلات لتحديثه.
+                أعاد المسؤول بلاغك للتعديل. يمكنك تحديث نتيجة التنفيذ وملاحظاته هنا، ثم تعديل البلاغ وإعادة إرساله. يجب أن تبقى النتيجة «فشل» لإعادة الإرسال.
               </p>
             )}
 
-            {canExecute && currentStatus !== 'failed' && (
+            {canExecute && currentStatus !== 'failed' && ownIssueStatus === null && (
               <p className="text-[11px] text-slate-400 mt-2">
                 لتسجيل بلاغ مشكلة، سجّل النتيجة «فشل» لهذا السيناريو أولًا.
               </p>

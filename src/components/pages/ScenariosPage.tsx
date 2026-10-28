@@ -14,6 +14,7 @@ export interface ScenariosPageProps {
   scenarios: RoundScenario[]
   workflows: RoundWorkflow[]
   ownExecutions: ScenarioExecution[]
+  ownIssueStatuses: Record<string, IssueStatus>
   selectedScenarioId: string
   onSelectScenario: (scenarioId: string) => void
   search: string
@@ -50,6 +51,7 @@ export function ScenariosPage({
   scenarios,
   workflows,
   ownExecutions,
+  ownIssueStatuses,
   selectedScenarioId,
   onSelectScenario,
   search,
@@ -87,6 +89,7 @@ export function ScenariosPage({
         scenarios={scenarios}
         workflows={workflows}
         executions={ownExecutions}
+        ownIssueStatuses={ownIssueStatuses}
         selectedScenarioId={selectedScenarioId}
         onSelectScenario={onSelectScenario}
         search={search}

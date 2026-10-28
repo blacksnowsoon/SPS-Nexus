@@ -43,14 +43,14 @@ const execution: ScenarioExecution = {
   updated_at: '2026-10-26T10:00:00Z',
 }
 
-function renderScenarioDetail(onReportIssue = vi.fn()) {
+function renderScenarioDetail(onReportIssue = vi.fn(), ownIssueStatus: 'open' | 'returned' | null = null) {
   return render(
     <ScenarioDetail
       scenario={scenario}
       workflow={workflow}
       execution={execution}
       issues={[]}
-      ownIssueStatus={null}
+      ownIssueStatus={ownIssueStatus}
       isAdmin={false}
       canExecute
       busyAction=""
@@ -82,5 +82,20 @@ describe('ScenarioDetail issue reporting', () => {
     expect(confirm).not.toHaveBeenCalled()
     expect(onReportIssue).toHaveBeenCalledOnce()
     expect(screen.getByText('البلاغ خاص بنتيجتك ولا يوقف تنفيذ السيناريو لبقية الفريق.')).toBeInTheDocument()
+  })
+
+  it('locks the execution status and notes after submitting an issue', () => {
+    renderScenarioDetail(vi.fn(), 'open')
+
+    expect(screen.getByRole('textbox', { name: 'ملاحظاتك' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '! فشل' })).toBeDisabled()
+    expect(screen.getByText(/تم قفل نتيجة التنفيذ وملاحظاته/)).toBeInTheDocument()
+  })
+
+  it('allows the reporter to edit execution details after the admin returns the issue', () => {
+    renderScenarioDetail(vi.fn(), 'returned')
+
+    expect(screen.getByRole('textbox', { name: 'ملاحظاتك' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '! فشل' })).toBeEnabled()
   })
 })

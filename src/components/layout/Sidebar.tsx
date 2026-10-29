@@ -28,8 +28,8 @@ export function Sidebar({
   return (
     <aside
       className={`bg-white border-e border-slate-200/90 min-h-[calc(100vh-72px)] flex flex-col transition-all duration-200 ${
-        collapsed ? 'w-[68px] p-2.5' : 'p-4'
-      } max-md:fixed max-md:bottom-0 max-md:inset-x-0 max-md:min-h-0 max-md:h-[62px] max-md:w-auto max-md:z-20 max-md:border-t max-md:border-e-0 max-md:p-1 max-md:bg-white/95 max-md:backdrop-blur-sm`}
+        collapsed ? 'w-17 p-2.5' : 'p-4'
+      } max-md:fixed max-md:bottom-0 max-md:inset-x-0 max-md:min-h-0 max-md:h-15.5 max-md:w-auto max-md:z-20 max-md:border-t max-md:border-e-0 max-md:p-1 max-md:bg-white/95 max-md:backdrop-blur-sm`}
     >
       {!collapsed ? (
         <div className="flex items-center justify-between gap-1.5 max-md:hidden">
@@ -107,7 +107,7 @@ export function Sidebar({
         <NavButton
           active={page === 'overview'}
           onClick={() => onPageChange('overview')}
-          icon="▦"
+          icon="📈"
           title="نظرة عامة"
           collapsed={collapsed}
         >
@@ -117,7 +117,7 @@ export function Sidebar({
         <NavButton
           active={page === 'scenarios'}
           onClick={() => onPageChange('scenarios')}
-          icon="☷"
+          icon="🗃️"
           title={`السيناريوهات (${scenarioCount})`}
           collapsed={collapsed}
           badge={scenarioCount}
@@ -131,7 +131,7 @@ export function Sidebar({
         <NavButton
           active={page === 'issues'}
           onClick={() => onPageChange('issues')}
-          icon="⚑"
+          icon="🚩"
           title={`المشكلات (${issueCount})`}
           collapsed={collapsed}
           badge={issueCount}
@@ -145,7 +145,7 @@ export function Sidebar({
         <NavButton
           active={page === 'rounds'}
           onClick={() => onPageChange('rounds')}
-          icon="◷"
+          icon="♻️"
           title="الجولات"
           collapsed={collapsed}
         >
@@ -156,7 +156,7 @@ export function Sidebar({
           <NavButton
             active={page === 'scenario-catalog'}
             onClick={() => onPageChange('scenario-catalog')}
-            icon="✎"
+            icon="📝"
             title="إدارة السيناريوهات"
             collapsed={collapsed}
           >

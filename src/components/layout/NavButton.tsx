@@ -35,13 +35,13 @@ export function NavButton({
           : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
       } max-md:flex-col max-md:justify-center max-md:gap-0.5 max-md:p-1 max-md:text-[9px]`}
     >
-      <span className="w-5 text-center text-sm max-md:text-base leading-none shrink-0">{icon}</span>
+      <span className="w-5 text-center text-md max-md:text-base leading-none shrink-0">{icon}</span>
       <div className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? 'hidden max-md:flex max-md:gap-0.5' : 'flex'}`}>
         {children}
       </div>
       {collapsed && typeof badge === 'number' && badge > 0 && (
         <span
-          className="absolute top-1 end-1 min-w-[15px] h-[15px] px-0.5 bg-blue-100 text-blue-700 border border-blue-200/80 rounded-full text-[9px] font-bold flex items-center justify-center leading-none max-md:hidden"
+          className="absolute top-1 inset-e-1 min-w-3.75 h-3.75 px-0.5 bg-blue-100 text-blue-700 border border-blue-200/80 rounded-full text-[9px] font-bold flex items-center justify-center leading-none max-md:hidden"
           title={`${badge}`}
         >
           {badge > 99 ? '99+' : badge}

@@ -108,12 +108,6 @@ export function IssuesPage({
   const handleExport = async (format: 'excel' | 'pdf') => {
     setExportError('')
     setExporting(true)
-    console.log("selectedIssues", selectedIssues)
-    console.log("workflows", workflows)
-    console.log("scenarios", scenarios)
-    console.log("reporters", reporters)
-    console.log("executionNotes", executionNotes)
-    console.log("roundName", roundName)
     try {
       if (format === 'excel') {
         await exportIssuesToExcel(selectedIssues, workflows, scenarios, reporters, executionNotes, roundName)

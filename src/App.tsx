@@ -28,6 +28,7 @@ import { Sidebar } from './components/layout/Sidebar'
 import { OverviewPage } from './components/pages/OverviewPage'
 import { ScenariosPage } from './components/pages/ScenariosPage'
 import { IssuesPage } from './components/pages/IssuesPage'
+import { PassedScenariosPage } from './components/pages/PassedScenariosPage'
 import { RoundsPage } from './components/pages/RoundsPage'
 import { ScenarioCatalogPage } from './components/pages/ScenarioCatalogPage'
 import './App.css'
@@ -49,6 +50,7 @@ function App() {
   const [executions, setExecutions] = useState<ScenarioExecution[]>([])
   const [issues, setIssues] = useState<ScenarioIssue[]>([])
   const [issueReporters, setIssueReporters] = useState<IssueReporter[]>([])
+  const [executionReporters, setExecutionReporters] = useState<IssueReporter[]>([])
   const [issueExecutionNotes, setIssueExecutionNotes] = useState<IssueExecutionNote[]>([])
   const [workspaceLoading, setWorkspaceLoading] = useState(true)
   const [error, setError] = useState('')
@@ -140,6 +142,7 @@ function App() {
         setExecutions([])
         setIssues([])
         setIssueReporters([])
+        setExecutionReporters([])
         setIssueExecutionNotes([])
       }
     })
@@ -152,12 +155,13 @@ function App() {
 
   const loadRoundContent = useCallback(async (roundId: string) => {
     if (!supabase || !roundId) return
-    const [scenarioResult, workflowResult, executionResult, issueResult, reporterResult, executionNotesResult] = await Promise.all([
+    const [scenarioResult, workflowResult, executionResult, issueResult, reporterResult, executionReporterResult, executionNotesResult] = await Promise.all([
       supabase.from('round_scenarios').select('*').eq('round_id', roundId).is('removed_at', null).order('sort_order'),
       supabase.from('round_scenario_workflows').select('*').eq('round_id', roundId),
       supabase.from('scenario_executions').select('*').eq('round_id', roundId),
       supabase.from('scenario_issues').select('*').eq('round_id', roundId).order('created_at', { ascending: false }),
       supabase.rpc('issue_reporters', { p_round_id: roundId }),
+      supabase.rpc('execution_reporters', { p_round_id: roundId }),
       supabase.rpc('issue_execution_notes', { p_round_id: roundId }),
     ])
     const queryError =
@@ -166,6 +170,7 @@ function App() {
       executionResult.error ??
       issueResult.error ??
       reporterResult.error ??
+      executionReporterResult.error ??
       executionNotesResult.error
     if (queryError) {
       setError(`تعذر تحميل بيانات الجولة: ${queryError.message}`)
@@ -174,6 +179,7 @@ function App() {
       setExecutions([])
       setIssues([])
       setIssueReporters([])
+      setExecutionReporters([])
       setIssueExecutionNotes([])
       setWorkspaceLoading(false)
       return
@@ -183,6 +189,7 @@ function App() {
     setExecutions(executionResult.data ?? [])
     setIssues(issueResult.data ?? [])
     setIssueReporters(reporterResult.data ?? [])
+    setExecutionReporters(executionReporterResult.data ?? [])
     setIssueExecutionNotes(executionNotesResult.data ?? [])
     setWorkspaceLoading(false)
   }, [])
@@ -596,6 +603,9 @@ function App() {
   const myCounts = countExecutions(scenarios.length, ownExecutions)
   const teamCounts = countExecutions(scenarios.length * activeMemberCount, executions)
   const activeIssues = issues.filter((issue) => issue.status !== 'resolved')
+  const passedScenarioCount = new Set(
+    executions.filter((execution) => execution.status === 'passed').map((execution) => execution.scenario_id),
+  ).size
   const selectedIssues = issues.filter((issue) => issue.scenario_id === selectedScenarioId)
   const ownIssueStatus =
     selectedIssues.find((issue) => issue.reported_by === user?.id && issue.status !== 'resolved')?.status ?? null
@@ -635,13 +645,14 @@ function App() {
           onPageChange={setPage}
           scenarioCount={scenarios.length}
           issueCount={activeIssues.length}
+          passedScenarioCount={passedScenarioCount}
           profile={profile}
           isAdmin={isAdmin}
           collapsed={isSidebarCollapsed}
           onToggleCollapsed={toggleSidebarCollapsed}
         />
 
-        <main className="max-w-[1540px] w-full mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8 lg:pb-16">
+        <main className="max-w-[1540px] w-full mx-auto px-4 sm:px-4 lg:px-6 py-4 sm:py-6 lg:pb-16">
           <div className="flex items-start justify-between gap-4 mb-6">
             <div>
               <p className="text-[11px] font-bold text-slate-400 tracking-wider uppercase m-0">
@@ -722,7 +733,7 @@ function App() {
           {!selectedRound && !workspaceLoading && page !== 'scenario-catalog' && (
             <section className="bg-white border border-slate-200/90 rounded-2xl p-10 sm:p-14 text-center shadow-xs mt-6">
               <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 font-bold text-xl flex items-center justify-center mx-auto mb-3">
-                ◷
+                ♻️
               </div>
               <h2 className="text-base font-bold text-slate-800 mb-1">لم تبدأ أي جولة بعد</h2>
               <p className="text-xs text-slate-500 max-w-sm mx-auto mb-5 leading-relaxed">
@@ -839,6 +850,17 @@ function App() {
               onReturnIssue={(issueId) => void returnIssueToReporter(issueId)}
               onResolveIssue={(issueId) => void resolveIssue(issueId)}
               onUpdateIssue={(issueId, report) => void updateIssueReport(issueId, report)}
+            />
+          )}
+
+          {selectedRound && page === 'passed-scenarios' && (
+            <PassedScenariosPage
+              key={selectedRound.id}
+              scenarios={scenarios}
+              executions={executions}
+              reporters={executionReporters}
+              roundName={selectedRound.name}
+              isAdmin={isAdmin}
             />
           )}
 

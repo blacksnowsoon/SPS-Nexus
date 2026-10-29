@@ -1,6 +1,76 @@
 import { useState, type FormEvent } from 'react'
 import type { ScenarioCatalogDraft, ScenarioCatalogItem } from '../../types'
 
+const moduleOptions = [
+  'نظام إدارة السفن',
+  'نظام إدارة البوابات',
+  'نظام إدارة البضائع العامة',
+  'نظام إدارة المتعاملين و طلبات المستخدمين',
+  'نظام إدارة خدمة العملاء',
+  'نظام ادارة التسميح المالي',
+  'نظام الرصد البيئي والحوادث',
+  'نظام الفواتير',
+]
+
+const sectionOptions = [
+  'سناريو دورة عمل المنافيست الوارد',
+  'سناريوهات إدارة البوابات',
+  'سناريوهات الإعدادات والبيانات الأساسية',
+  'سناريوهات دورة عمل إضافة مهيئة على سفينة',
+  'سناريوهات دورة عمل إقرار صادر',
+  'سناريوهات دورة عمل المنافيست الصادر',
+  'سناريوهات دورة عمل تفريغ وشحن الحاويات',
+  'سناريوهات دورة عمل حاويات الترانزيت',
+  'سناريوهات دورة عمل منافيست طلب الارسال',
+  'سناريوهات دورة عمل موقف الرسالة',
+  'سناريوهات قائمة الحاويات المحملة على السفينة',
+  'سناريوهات قائمة الحاويات المشحونة',
+  'سيناريوهات إدارة الاستبيانات',
+  'سيناريوهات إدارة الشكاوى والمقترحات',
+  'سيناريوهات إدارة ومتابعة أعمال المراقبة والرصد ومتابعة المحاضر',
+  'سيناريوهات إصدار ومراجعة الفواتير',
+  'سيناريوهات تخطيط التراكي',
+  'سيناريوهات تسجيل وإصدار شهادة التخلص الآمن',
+  'سيناريوهات تعريف الفواتير',
+  'سيناريوهات دورة عمل إدارة القطار',
+  'سيناريوهات دورة عمل الشحن والتفريغ الفعلي للقطارات',
+  'سيناريوهات دورة عمل دخول وخروج الحاويات',
+  'سيناريوهات طلبات التوكيل الملاحي',
+  'سيناريوهات طلبات جمع النفايات',
+  'سيناريوهات متابعة وتنفيذ عمليات رفع النفايات',
+  'سيناريوهات نظام التسميح المالي',
+  'سيناريوهات نظام المتعاملين و طلبات المستخدمين',
+]
+
+const categoryOptions = [
+  'طلب التراكي',
+  'طلب تموين السفينة بالمياه',
+  'طلب تزويد السفينة بالوقود أو الزيت',
+  'طلب الدخول',
+  'طلب المغادرة وتصريح السفر',
+  'طلب تعديل بيانات الزيارة',
+  'طلب نقل سفينة',
+  'طلب نقل وكالة',
+  'طلب زيارة رقابية',
+  'أرصدة وحسابات العملاء',
+  'إعدادات تطبيق التسميح المالي',
+  'القواعد العامة للتسميح المالي',
+  'حركات الإيداعات للعملاء',
+  'حسابي المالي',
+  'مراجعة وتسوية أذونات التوريد للعملاء',
+  'مراجعة وتسوية الفواتير',
+  'إعدادات التخطيط وأسس اختيار ترتيب السفن',
+  'إنشاء مقترح الخطة وتجميع المصادر',
+  'الزيارات المخطط لها والتي لم يخطط لها',
+  'الطلبات المقدمة للجنة التراكي',
+  'القرارات الصادرة على الطلبات',
+  'المحادثات)الشات(وقواعد التواصل في يومية العمل',
+  'ترحيل أوامر الشغل التي لم تنفذ',
+  'تفاعلات الجهات الخارجية مع يومية العمل',
+  'تنفيذات يومية العمل ومحاكي الميناء',
+  'يومية العمل والاعتماد',
+]
+
 export interface ScenarioCatalogPageProps {
   scenarios: ScenarioCatalogItem[]
   busyAction: string
@@ -29,6 +99,8 @@ export function ScenarioCatalogPage({ scenarios, busyAction, onSave }: ScenarioC
       .toLocaleLowerCase()
       .includes(search.trim().toLocaleLowerCase()),
   )
+  const selectableValues = (options: string[], currentValue: string) =>
+    currentValue && !options.includes(currentValue) ? [...options, currentValue] : options
 
   const startNew = () => {
     setSelectedId('')
@@ -165,29 +237,44 @@ export function ScenarioCatalogPage({ scenarios, busyAction, onSave }: ScenarioC
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block text-xs font-semibold text-slate-700">
             النظام
-            <input
+            <select
               required
               value={draft.module}
               onChange={(event) => updateDraft('module', event.target.value)}
               className="mt-1 w-full border border-slate-200 rounded-lg p-2.5 text-xs"
-            />
+            >
+              <option value="">اختر النظام</option>
+              {selectableValues(moduleOptions, draft.module).map((module) => (
+                <option key={module} value={module}>{module}</option>
+              ))}
+            </select>
           </label>
           <label className="block text-xs font-semibold text-slate-700">
             القسم
-            <input
+            <select
               required
               value={draft.section}
               onChange={(event) => updateDraft('section', event.target.value)}
               className="mt-1 w-full border border-slate-200 rounded-lg p-2.5 text-xs"
-            />
+            >
+              <option value="">اختر القسم</option>
+              {selectableValues(sectionOptions, draft.section).map((section) => (
+                <option key={section} value={section}>{section}</option>
+              ))}
+            </select>
           </label>
           <label className="block text-xs font-semibold text-slate-700">
             الفئة
-            <input
+            <select
               value={draft.category}
               onChange={(event) => updateDraft('category', event.target.value)}
               className="mt-1 w-full border border-slate-200 rounded-lg p-2.5 text-xs"
-            />
+            >
+              <option value="">اختر الفئة (اختياري)</option>
+              {selectableValues(categoryOptions, draft.category).map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
           </label>
           <label className="block text-xs font-semibold text-slate-700">
             رقم السيناريو في القسم

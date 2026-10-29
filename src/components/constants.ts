@@ -1,6 +1,6 @@
 import type { ExecutionStatus, IssueStatus, RoundStatus, WorkflowStatus } from '../types'
 
-export type Page = 'overview' | 'scenarios' | 'issues' | 'rounds' | 'scenario-catalog'
+export type Page = 'overview' | 'scenarios' | 'issues' | 'passed-scenarios' | 'rounds' | 'scenario-catalog'
 
 export const statusLabels: Record<ExecutionStatus, string> = {
   not_tested: 'لم يُختبر',
@@ -86,6 +86,7 @@ export function pageTitle(page: Page): string {
     overview: 'نظرة عامة',
     scenarios: 'سيناريوهات الاختبار',
     issues: 'متابعة المشكلات',
+    'passed-scenarios': 'السيناريوهات الناجحة',
     rounds: 'الجولات والسبرنتات',
     'scenario-catalog': 'إدارة السيناريوهات',
   }[page]
@@ -99,6 +100,7 @@ export function pageDescription(page: Page, round: { name: string } | null, isAd
   }
   if (page === 'scenarios') return 'نفّذ السيناريوهات وسجّل نتيجتك؛ بيانات كل مختبِر مستقلة.'
   if (page === 'issues') return isAdmin ? 'راجع البلاغات وحرّكها خلال مراحل المعالجة.' : 'تابع المشكلات التي أُبلغ عنها في الجولة.'
+  if (page === 'passed-scenarios') return 'استعرض السيناريوهات التي اجتازت الاختبار في الجولة الحالية.'
   if (page === 'scenario-catalog') return 'أضف وعدّل سيناريوهات الكتالوج المشترك للجولات الجديدة.'
   return isAdmin ? 'أنشئ جولات الاختبار وأدر حالتها.' : 'استعرض جولات الاختبار وسجلها.'
 }

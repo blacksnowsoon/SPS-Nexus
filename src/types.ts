@@ -85,6 +85,7 @@ export interface ScenarioExecution {
   user_id: string
   status: ExecutionStatus
   notes: string
+  created_at: string
   updated_at: string
 }
 
@@ -271,6 +272,10 @@ export interface Database {
         Returns: number
       }
       issue_reporters: {
+        Args: { p_round_id: string }
+        Returns: IssueReporter[]
+      }
+      execution_reporters: {
         Args: { p_round_id: string }
         Returns: IssueReporter[]
       }

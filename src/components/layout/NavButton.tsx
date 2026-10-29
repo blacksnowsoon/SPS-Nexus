@@ -36,7 +36,7 @@ export function NavButton({
       } max-md:flex-col max-md:justify-center max-md:gap-0.5 max-md:p-1 max-md:text-[9px]`}
     >
       <span className="w-5 text-center text-md max-md:text-base leading-none shrink-0">{icon}</span>
-      <div className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? 'hidden max-md:flex max-md:gap-0.5' : 'flex'}`}>
+      <div className={`flex items-center gap-2.5 flex-1 min-w-0 max-md:hidden ${collapsed ? 'hidden' : 'flex'}`}>
         {children}
       </div>
       {collapsed && typeof badge === 'number' && badge > 0 && (

@@ -36,6 +36,7 @@ const execution: ScenarioExecution = {
   user_id: 'user-1',
   status: 'failed',
   notes: '',
+  created_at: '2026-10-26T10:00:00Z',
   updated_at: '2026-10-26T10:00:00Z',
 }
 

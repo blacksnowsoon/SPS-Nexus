@@ -21,8 +21,8 @@ export function Topbar({
   onToggleSidebar,
 }: TopbarProps) {
   return (
-    <header className="h-[72px] max-md:h-auto max-md:min-h-[60px] px-5 sm:px-8 max-md:py-2.5 flex items-center justify-between bg-white border-b border-slate-200/90 sticky top-0 z-30 shadow-2xs">
-      <div className="flex items-center gap-3">
+    <header className="h-[72px] max-md:h-auto max-md:min-h-[60px] px-5 sm:px-8 max-md:px-3 max-md:py-2.5 flex items-center justify-between max-md:flex-wrap max-md:gap-x-2.5 max-md:gap-y-2 bg-white border-b border-slate-200/90 sticky top-0 z-30 shadow-2xs">
+      <div className="flex items-center gap-3 min-w-0 max-md:flex-1">
         {onToggleSidebar && (
           <button
             type="button"
@@ -39,20 +39,20 @@ export function Topbar({
         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-base bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20">
           S
         </div>
-        <div className="flex flex-col leading-tight">
-          <strong className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">SPS Nexus</strong>
-          <span className="text-[11px] text-slate-400 font-medium dir-ltr">UAT Workspace</span>
+        <div className="flex flex-col leading-tight min-w-0">
+          <strong className="text-sm sm:text-base font-bold text-slate-900 tracking-tight truncate">SPS Nexus</strong>
+          <span className="text-[11px] text-slate-400 font-medium dir-ltr truncate">UAT Workspace</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-4 sm:gap-7 max-md:gap-2.5">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span className="max-sm:hidden font-medium">الجولة</span>
+      <div className="flex items-center gap-4 sm:gap-7 max-md:contents">
+        <div className="flex items-center justify-center gap-2 text-xs text-slate-500 max-md:order-3 max-md:w-full">
+          <span className="max-md:hidden font-medium">الجولة</span>
           <select
             aria-label="اختيار الجولة"
             value={selectedRoundId}
             onChange={(event) => onSelectRoundId(event.target.value)}
-            className="max-w-[270px] max-sm:max-w-[140px] bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+            className="max-w-[220px] max-sm:max-w-[140px]  bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
           >
             <option value="">لا توجد جولات</option>
             {rounds.map((round) => (
@@ -62,8 +62,8 @@ export function Topbar({
             ))}
           </select>
         </div>
-
-        <div className="flex items-center gap-2 text-xs text-slate-700 bg-slate-50/80 border border-slate-200/80 rounded-full px-2 py-1">
+        {/* usr */}
+        <div className="flex items-center gap-2 text-xs text-slate-700 bg-slate-50/80 border border-slate-200/80 rounded-full px-2 py-1 shrink-0 max-md:order-2 max-md:ms-auto">
           {profile?.avatar_url ? (
             <img src={profile.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover" />
           ) : (
@@ -71,7 +71,7 @@ export function Topbar({
               {(profile?.display_name || profile?.email || 'U').slice(0, 1).toUpperCase()}
             </span>
           )}
-          <span className="max-sm:hidden font-medium text-slate-700 truncate max-w-[120px]">
+          <span className="max-md:hidden font-medium text-slate-700 truncate max-w-[120px]">
             {profile?.display_name || profile?.email}
           </span>
           <button

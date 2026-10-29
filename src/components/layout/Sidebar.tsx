@@ -8,6 +8,7 @@ export interface SidebarProps {
   onPageChange: (page: Page) => void
   scenarioCount: number
   issueCount: number
+  passedScenarioCount: number
   profile: Profile | null
   isAdmin: boolean
   collapsed?: boolean
@@ -20,6 +21,7 @@ export function Sidebar({
   onPageChange,
   scenarioCount,
   issueCount,
+  passedScenarioCount,
   profile,
   isAdmin,
   collapsed = false,
@@ -27,7 +29,7 @@ export function Sidebar({
 }: SidebarProps) {
   return (
     <aside
-      className={`bg-white border-e border-slate-200/90 min-h-[calc(100vh-72px)] flex flex-col transition-all duration-200 ${
+      className={`bg-white border-e border-slate-200/90 min-h-[calc(100vh-72px)] flex flex-col transition-all duration-200 md:sticky md:top-[72px] md:h-[calc(100vh-72px)] md:min-h-0 md:self-start md:overflow-y-auto ${
         collapsed ? 'w-17 p-2.5' : 'p-4'
       } max-md:fixed max-md:bottom-0 max-md:inset-x-0 max-md:min-h-0 max-md:h-15.5 max-md:w-auto max-md:z-20 max-md:border-t max-md:border-e-0 max-md:p-1 max-md:bg-white/95 max-md:backdrop-blur-sm`}
     >
@@ -101,7 +103,7 @@ export function Sidebar({
       )}
 
       <nav
-        className={`grid gap-1 ${isAdmin ? 'max-md:grid-cols-5' : 'max-md:grid-cols-4'} max-md:h-full max-md:items-center max-md:gap-0.5`}
+        className={`grid gap-1 ${isAdmin ? 'max-md:grid-cols-6' : 'max-md:grid-cols-5'} max-md:h-full max-md:items-center max-md:gap-0.5`}
         aria-label="التنقل الرئيسي"
       >
         <NavButton
@@ -143,6 +145,20 @@ export function Sidebar({
         </NavButton>
 
         <NavButton
+          active={page === 'passed-scenarios'}
+          onClick={() => onPageChange('passed-scenarios')}
+          icon="✅"
+          title={`السيناريوهات الناجحة (${passedScenarioCount})`}
+          collapsed={collapsed}
+          badge={passedScenarioCount}
+        >
+          <span>الناجحة</span>
+          <span className="ms-auto bg-emerald-50 text-emerald-700 rounded-full px-1.5 py-0.2 text-[10px] font-semibold max-md:hidden">
+            {passedScenarioCount}
+          </span>
+        </NavButton>
+
+        <NavButton
           active={page === 'rounds'}
           onClick={() => onPageChange('rounds')}
           icon="♻️"
@@ -156,7 +172,7 @@ export function Sidebar({
           <NavButton
             active={page === 'scenario-catalog'}
             onClick={() => onPageChange('scenario-catalog')}
-            icon="📝"
+            icon="⚙️"
             title="إدارة السيناريوهات"
             collapsed={collapsed}
           >

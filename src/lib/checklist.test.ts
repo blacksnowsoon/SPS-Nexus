@@ -64,6 +64,7 @@ describe('execution summaries', () => {
       user_id: 'user-1',
       status: 'failed',
       notes: 'ظهرت رسالة خطأ',
+      created_at: '',
       updated_at: '',
     }
 

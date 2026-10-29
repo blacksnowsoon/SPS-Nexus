@@ -277,10 +277,10 @@ export function ScenarioDetail({
                   onClick={onReportIssue}
                   disabled={!issueDraft.trim() || busyAction === 'issue'}
                 >
-                  {busyAction === 'issue' ? 'جارٍ الإرسال…' : 'إرسال بلاغ المشكلة'}
+                  {busyAction === 'issue' ? 'جارٍ الإرسال…' : 'إرسال نتائج الاختبار'}
                 </button>
                 <small className="block text-[10px] text-slate-400 mt-1 leading-relaxed">
-                  البلاغ خاص بنتيجتك ولا يوقف تنفيذ السيناريو لبقية الفريق.
+                  إرسال نتائج الاختبار الخاصة بك 
                 </small>
               </div>
             )}

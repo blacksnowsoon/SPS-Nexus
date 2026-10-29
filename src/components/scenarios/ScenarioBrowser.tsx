@@ -157,9 +157,9 @@ export function ScenarioBrowser({
                         : 'bg-amber-50 text-amber-700 border border-amber-200/60'
                     }`}
                     title={ownIssueStatus === 'open' ? 'نتيجة التنفيذ وملاحظاته مقفلة' : 'أعاد المسؤول البلاغ للتعديل'}
-                    aria-label={ownIssueStatus === 'open' ? 'حالة البلاغ: التنفيذ مغلق' : 'حالة البلاغ: للتعديل'}
+                    aria-label={ownIssueStatus === 'open' ? 'حالة البلاغ: تم الارسال' : 'حالة البلاغ: للتعديل'}
                   >
-                    {ownIssueStatus === 'open' ? 'التنفيذ مغلق' : 'للتعديل'}
+                    {ownIssueStatus === 'open' ? 'تم الارسال' : 'للتعديل'}
                   </span>
                 )}
 

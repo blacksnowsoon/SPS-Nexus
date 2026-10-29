@@ -26,7 +26,7 @@ export function buildIssueExportRows(
       'رقم السيناريو': scenario?.source_number ?? '',
       السيناريو: scenario?.title ?? issue.scenario_id,
       النظام: scenario?.module ?? '',
-      القسم: scenario?.section ?? '',
+      القسم: (scenario?.section ?? '') + (scenario?.category ? ` / ${scenario.category}` : ''),
       'حالة البلاغ': issueStatusLabels[issue.status],
       'تفاصيل البلاغ': issue.report,
       'حالة السيناريو': workflow ? workflowLabels[workflow.status] : '',

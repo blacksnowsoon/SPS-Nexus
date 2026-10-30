@@ -5,6 +5,7 @@ import { countExecutions, filterScenarios } from './lib/checklist'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 import type {
   ExecutionStatus,
+  IssueStatus,
   IssueExecutionNote,
   IssueReporter,
   Profile,
@@ -32,6 +33,19 @@ import { PassedScenariosPage } from './components/pages/PassedScenariosPage'
 import { RoundsPage } from './components/pages/RoundsPage'
 import { ScenarioCatalogPage } from './components/pages/ScenarioCatalogPage'
 import './App.css'
+
+function getOwnIssueStatus(
+  issues: ScenarioIssue[],
+  scenarioId: string,
+  userId: string,
+): IssueStatus | null {
+  const ownIssues = issues.filter(
+    (issue) => issue.scenario_id === scenarioId && issue.reported_by === userId,
+  )
+
+  if (ownIssues.some((issue) => issue.status === 'resolved')) return 'resolved'
+  return ownIssues.find((issue) => issue.status !== 'resolved')?.status ?? null
+}
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -264,9 +278,7 @@ function App() {
 
   const saveExecution = async (scenario: RoundScenario, status: ExecutionStatus, notes: string) => {
     if (!supabase || !user || !selectedRound || !canExecute) return
-    const ownIssueStatus = issues.find(
-      (issue) => issue.scenario_id === scenario.scenario_id && issue.reported_by === user.id && issue.status !== 'resolved',
-    )?.status
+    const ownIssueStatus = getOwnIssueStatus(issues, scenario.scenario_id, user.id)
     if (ownIssueStatus && ownIssueStatus !== 'returned') return
     setBusyAction(`execution-${scenario.scenario_id}`)
     setError('')
@@ -607,13 +619,16 @@ function App() {
     executions.filter((execution) => execution.status === 'passed').map((execution) => execution.scenario_id),
   ).size
   const selectedIssues = issues.filter((issue) => issue.scenario_id === selectedScenarioId)
-  const ownIssueStatus =
-    selectedIssues.find((issue) => issue.reported_by === user?.id && issue.status !== 'resolved')?.status ?? null
-  const ownIssueStatuses = Object.fromEntries(
-    issues
-      .filter((issue) => issue.reported_by === user?.id && issue.status !== 'resolved')
-      .map((issue) => [issue.scenario_id, issue.status]),
-  )
+  const ownIssueStatus = user
+    ? getOwnIssueStatus(issues, selectedScenarioId, user.id)
+    : null
+  const ownIssueStatuses = issues.reduce<Record<string, IssueStatus>>((statuses, issue) => {
+    if (issue.reported_by !== user?.id || statuses[issue.scenario_id] === 'resolved') return statuses
+    if (!statuses[issue.scenario_id] || issue.status === 'resolved') {
+      statuses[issue.scenario_id] = issue.status
+    }
+    return statuses
+  }, {})
 
   return (
     <div className="min-h-screen bg-slate-50/60 text-slate-800" dir="rtl">
@@ -848,7 +863,7 @@ function App() {
                 setPage('scenarios')
               }}
               onReturnIssue={(issueId) => void returnIssueToReporter(issueId)}
-              onResolveIssue={(issueId) => void resolveIssue(issueId)}
+              onResolveIssue={resolveIssue}
               onUpdateIssue={(issueId, report) => void updateIssueReport(issueId, report)}
             />
           )}

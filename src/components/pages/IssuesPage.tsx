@@ -5,6 +5,7 @@ import type {
   IssueReporter,
   RoundScenario,
   RoundWorkflow,
+  IssueStatus,
   ScenarioIssue,
 } from '../../types'
 import { EmptyState } from '../common/EmptyState'
@@ -26,7 +27,7 @@ export interface IssuesPageProps {
   userId: string
   onOpenScenario: (id: string) => void
   onReturnIssue: (issueId: string) => void
-  onResolveIssue: (issueId: string) => void
+  onResolveIssue: (issueId: string) => void | Promise<void>
   onUpdateIssue: (issueId: string, report: string) => void
 }
 
@@ -51,6 +52,8 @@ export function IssuesPage({
   const [reportDrafts, setReportDrafts] = useState<Record<string, string>>({})
   const [exportError, setExportError] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [resolvingSelected, setResolvingSelected] = useState(false)
+  const [expandedScenarioIds, setExpandedScenarioIds] = useState<string[]>([])
   const issueModules = useMemo(
     () =>
       [...new Set(
@@ -96,6 +99,24 @@ export function IssuesPage({
     () => issues.filter((issue) => selectedIssueIds.includes(issue.id)),
     [issues, selectedIssueIds],
   )
+  const visibleIssueGroups = useMemo(() => {
+    const groups = new Map<string, { scenario: RoundScenario | undefined; issues: ScenarioIssue[] }>()
+
+    visibleIssues.forEach((issue) => {
+      let group = groups.get(issue.scenario_id)
+      if (!group) {
+        group = {
+          scenario: scenarios.find((item) => item.scenario_id === issue.scenario_id),
+          issues: [],
+        }
+        groups.set(issue.scenario_id, group)
+      }
+      group.issues.push(issue)
+    })
+
+    return [...groups.values()]
+  }, [scenarios, visibleIssues])
+  const selectedUnresolvedIssues = selectedIssues.filter((issue) => issue.status !== 'resolved')
   const allVisibleSelected =
     visibleIssues.length > 0 && visibleIssues.every((issue) => selectedIssueIds.includes(issue.id))
 
@@ -103,6 +124,26 @@ export function IssuesPage({
     setSelectedIssueIds((current) =>
       checked ? [...new Set([...current, issueId])] : current.filter((id) => id !== issueId),
     )
+  }
+
+  const toggleIssues = (issueIds: string[], checked: boolean) => {
+    setSelectedIssueIds((current) => {
+      const ids = new Set(issueIds)
+      return checked
+        ? [...new Set([...current, ...ids])]
+        : current.filter((id) => !ids.has(id))
+    })
+  }
+
+  const handleResolveSelected = async () => {
+    setResolvingSelected(true)
+    try {
+      for (const issue of selectedUnresolvedIssues) {
+        await onResolveIssue(issue.id)
+      }
+    } finally {
+      setResolvingSelected(false)
+    }
   }
 
   const handleExport = async (format: 'excel' | 'pdf') => {
@@ -154,6 +195,14 @@ export function IssuesPage({
             <span>تحديد الكل ({visibleIssues.length})</span>
           </label>
           <span className="text-xs text-slate-400 ms-auto">تم تحديد {selectedIssues.length}</span>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
+            disabled={selectedUnresolvedIssues.length === 0 || resolvingSelected}
+            onClick={() => void handleResolveSelected()}
+          >
+            {resolvingSelected ? 'جارٍ الحل…' : `تحويل البلاغات المحددة (${selectedUnresolvedIssues.length})`}
+          </button>
           <button
             className="inline-flex items-center justify-center px-2 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
             disabled={selectedIssues.length === 0 || exporting}
@@ -219,8 +268,83 @@ export function IssuesPage({
         />
       ) : (
       <section className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        {visibleIssues.map((issue) => {
-          const scenario = scenarios.find((item) => item.scenario_id === issue.scenario_id)
+        {visibleIssueGroups.map(({ scenario, issues: scenarioIssues }) => {
+          const scenarioTitle = scenario?.title ?? scenarioIssues[0].scenario_id
+          const scenarioId = scenarioIssues[0].scenario_id
+          const selectedCount = scenarioIssues.filter((issue) => selectedIssueIds.includes(issue.id)).length
+          const allGroupIssuesSelected = selectedCount === scenarioIssues.length
+          const isExpanded = expandedScenarioIds.includes(scenarioId)
+          const groupStatus: IssueStatus = scenarioIssues.some((issue) => issue.status === 'open')
+            ? 'open'
+            : scenarioIssues.some((issue) => issue.status === 'returned')
+              ? 'returned'
+              : 'resolved'
+
+          return (
+            <article
+              className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs min-w-0"
+              key={scenarioId}
+            >
+              <header className="flex items-start gap-3">
+                {isAdmin && (
+                  <input
+                    className="accent-blue-600 w-4 h-4 mt-1 rounded cursor-pointer"
+                    type="checkbox"
+                    checked={allGroupIssuesSelected}
+                    ref={(element) => {
+                      if (element) element.indeterminate = selectedCount > 0 && !allGroupIssuesSelected
+                    }}
+                    onChange={(event) =>
+                      toggleIssues(scenarioIssues.map((issue) => issue.id), event.target.checked)
+                    }
+                    aria-label={`تحديد بلاغات السيناريو ${scenarioTitle}`}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-start"
+                  aria-expanded={isExpanded}
+                  aria-label={`${isExpanded ? 'إخفاء' : 'عرض'} بلاغات السيناريو ${scenarioTitle}`}
+                  onClick={() =>
+                    setExpandedScenarioIds((current) =>
+                      isExpanded
+                        ? current.filter((id) => id !== scenarioId)
+                        : [...current, scenarioId],
+                    )
+                  }
+                >
+                  <div className="flex items-center flex-wrap gap-2">
+                    <h2 className="text-sm font-bold text-slate-900 leading-snug">{scenarioTitle}</h2>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${issueStatusBadgeClasses[groupStatus]}`}
+                    >
+                      {issueStatusLabels[groupStatus]}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-slate-400 dir-ltr">
+                      #{scenario?.source_number}
+                    </span>
+                    <span className="ms-auto text-xs font-semibold text-slate-500">
+                      {scenarioIssues.length} {scenarioIssues.length === 1 ? 'بلاغ' : 'بلاغات'}
+                      <span className="ms-2 text-slate-400" aria-hidden="true">{isExpanded ? '−' : '+'}</span>
+                    </span>
+                  </div>
+                  {scenario && (
+                    <p className="text-[10px] text-slate-400 font-medium mt-1">
+                      {scenario.module} · {scenario.section}
+                      {scenario.category && (
+                        <>
+                          {' '}
+                          <span className="text-slate-300">·</span> {scenario.category}
+                        </>
+                      )}
+                    </p>
+                  )}
+                </button>
+              </header>
+
+              {isExpanded && (
+              <div className="grid grid-cols-1 gap-3.5 pt-3 mt-3 border-t border-slate-100">
+                {scenarioIssues.map((issue) => {
           const workflow = workflows.find((item) => item.scenario_id === issue.scenario_id)
           const reporter = reporters.find((item) => item.id === issue.reported_by)
           const executionNote = executionNotes.find(
@@ -232,7 +356,7 @@ export function IssuesPage({
 
           return (
             <article
-              className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between"
+              className="bg-slate-50/50 border border-slate-200/80 rounded-xl p-4 shadow-2xs flex flex-col justify-between"
               key={issue.id}
             >
               <div>
@@ -251,23 +375,7 @@ export function IssuesPage({
                   >
                     {issueStatusLabels[issue.status]}
                   </span>
-                  <span className="ms-auto text-xs font-mono font-bold text-slate-400 dir-ltr">
-                    #{scenario?.source_number}
-                  </span>
                 </div>
-
-                <h2 className="text-sm font-bold text-slate-900 mt-2.5 mb-0.5 leading-snug">
-                  {scenario?.title ?? issue.scenario_id}
-                </h2>
-                <p className="text-[10px] text-slate-400 font-medium">
-                  {scenario?.module} · {scenario?.section} 
-                  {scenario?.category && (
-                      <>
-                        {' '}
-                        <span className="text-slate-300">·</span> {scenario.category}
-                      </>
-                    )}
-                </p>
 
                 <div className="border-s-4 border-rose-300 bg-rose-50/50 p-3 rounded-lg mt-3 space-y-2">
                   <div className="flex items-center gap-2">
@@ -358,6 +466,11 @@ export function IssuesPage({
                   </button>
                 )}
               </div>
+            </article>
+          )
+                })}
+              </div>
+              )}
             </article>
           )
         })}

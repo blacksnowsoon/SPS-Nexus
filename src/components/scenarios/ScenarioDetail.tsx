@@ -11,6 +11,7 @@ import type {
 } from '../../types'
 import {
   formatDate,
+  issueStatusLabels,
   statusLabels,
   workflowBadgeClasses,
   workflowLabels,
@@ -102,9 +103,41 @@ export function ScenarioDetail({
     <aside className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs min-h-[500px]">
       <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
         <span className="text-xs font-mono font-bold text-slate-400 dir-ltr">#{scenario.source_number}</span>
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${workflowBadgeClasses[wStatus]}`}>
+        {ownIssueStatus && (
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold max-w-22.5 truncate ${
+                      ownIssueStatus === 'open'
+                        ? 'bg-slate-100 text-slate-700 border border-slate-300'
+                        : ownIssueStatus === 'returned'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                    }`}
+                    title={
+                      ownIssueStatus === 'open'
+                        ? 'نتيجة التنفيذ وملاحظاته مقفلة'
+                        : ownIssueStatus === 'returned'
+                          ? 'أعاد المسؤول البلاغ للتعديل'
+                          : 'تم تحويل ملاحظات السيناريو إلى فريق التطوير'
+                    }
+                    aria-label={
+                      ownIssueStatus === 'open'
+                        ? 'حالة البلاغ: تم الارسال'
+                        : ownIssueStatus === 'returned'
+                          ? 'حالة البلاغ: للتعديل'
+                          : 'حالة البلاغ: تم التحويل'
+                    }
+                  >
+                    {ownIssueStatus === 'open'
+                      ? 'تم الارسال'
+                      : ownIssueStatus === 'returned'
+                        ? 'للتعديل'
+                        : issueStatusLabels.resolved}
+                  </span>
+                )}
+        {/* <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${workflowBadgeClasses[wStatus]}`}>
           {workflowLabels[wStatus]}
-        </span>
+          
+        </span> */}
         {isAdmin && isEditableWorkflow(workflow?.status) && !editing && (
           <button
             className="ms-auto w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center text-xs transition-colors"
@@ -260,6 +293,12 @@ export function ScenarioDetail({
               </p>
             )}
 
+            {ownIssueStatus === 'resolved' && (
+              <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/60 rounded-lg p-2.5 mt-2.5">
+                تم تحويل ملاحظات السيناريو الي فريق التطوير
+              </p>
+            )}
+
             {canExecute && currentStatus === 'failed' && ownIssueStatus === null && (
               <div className="border-t border-slate-200 pt-3 mt-3">
                 <label className="block text-xs font-semibold text-rose-800">
@@ -300,7 +339,7 @@ export function ScenarioDetail({
 
           {issues.length > 0 && (
             <section className="mt-4 pt-3 border-t border-slate-100">
-              <h3 className="text-xs font-bold text-slate-700 mb-2">بلاغات المشكلة</h3>
+              <h3 className="text-xs font-bold text-slate-700 mb-2">بلاغات الفريق</h3>
               <div className="space-y-2">
                 {issues.map((issue) => (
                   <article key={issue.id} className="border border-rose-100 bg-rose-50/40 rounded-xl p-3">
@@ -308,13 +347,7 @@ export function ScenarioDetail({
                       <small className="text-[10px] text-slate-400 font-medium">
                         {formatDate(issue.created_at)}
                       </small>
-                      <small className="text-[10px] text-slate-500">
-                        {issue.status === 'returned'
-                          ? 'مُعاد للمبلّغ'
-                          : issue.status === 'resolved'
-                            ? 'تم الحل'
-                            : 'مفتوح'}
-                      </small>
+                      <small className="text-[10px] text-slate-500">{issueStatusLabels[issue.status]}</small>
                     </div>
                     <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{issue.report}</p>
                   </article>

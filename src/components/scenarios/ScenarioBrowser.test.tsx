@@ -40,7 +40,7 @@ const execution: ScenarioExecution = {
   updated_at: '2026-10-26T10:00:00Z',
 }
 
-function renderBrowser(ownIssueStatus: 'open' | 'returned') {
+function renderBrowser(ownIssueStatus: 'open' | 'returned' | 'resolved') {
   return render(
     <ScenarioBrowser
       scenarios={[scenario]}
@@ -66,8 +66,8 @@ describe('ScenarioBrowser issue status', () => {
   it('shows that execution is locked after a report is submitted', () => {
     renderBrowser('open')
 
-    expect(screen.getByLabelText('حالة البلاغ: التنفيذ مغلق')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /حفظ طلب جديد.*لديه مشكلة.*التنفيذ مغلق/ })).toBeInTheDocument()
+    expect(screen.getByLabelText('حالة البلاغ: تم الارسال')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /حفظ طلب جديد.*لديه مشكلة.*تم الارسال/ })).toBeInTheDocument()
   })
 
   it('shows when an admin returns the report for edits', () => {
@@ -75,5 +75,14 @@ describe('ScenarioBrowser issue status', () => {
 
     expect(screen.getByLabelText('حالة البلاغ: للتعديل')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /حفظ طلب جديد.*لديه مشكلة.*للتعديل/ })).toBeInTheDocument()
+  })
+
+  it('shows when an admin converts the report to the development team', () => {
+    renderBrowser('resolved')
+
+    expect(screen.getByLabelText('حالة البلاغ: تم التحويل')).toHaveTextContent('تم التحويل')
+    expect(
+      screen.getByTitle('تم تحويل ملاحظات السيناريو إلى فريق التطوير'),
+    ).toBeInTheDocument()
   })
 })

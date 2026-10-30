@@ -68,7 +68,7 @@ export const workflowDotClasses: Record<WorkflowStatus, string> = {
 export const issueStatusLabels: Record<IssueStatus, string> = {
   open: 'مفتوح',
   returned: 'مُعاد للمبلّغ',
-  resolved: 'تم الحل',
+  resolved: 'تم التحويل',
 }
 
 export const issueStatusBadgeClasses: Record<IssueStatus, string> = {

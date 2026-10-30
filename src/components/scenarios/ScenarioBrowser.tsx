@@ -1,6 +1,7 @@
 import type { IssueStatus, RoundScenario, RoundWorkflow, ScenarioExecution } from '../../types'
 import { EmptyState } from '../common/EmptyState'
 import {
+  issueStatusLabels,
   statusDotClasses,
   statusLabels,
   workflowBadgeClasses,
@@ -149,17 +150,35 @@ export function ScenarioBrowser({
                   {workflowLabels[wStatus]}
                 </span>
 
-                {ownIssueStatus && ownIssueStatus !== 'resolved' && (
+                {ownIssueStatus && (
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold max-w-22.5 truncate ${
                       ownIssueStatus === 'open'
                         ? 'bg-slate-100 text-slate-700 border border-slate-300'
-                        : 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                        : ownIssueStatus === 'returned'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
                     }`}
-                    title={ownIssueStatus === 'open' ? 'نتيجة التنفيذ وملاحظاته مقفلة' : 'أعاد المسؤول البلاغ للتعديل'}
-                    aria-label={ownIssueStatus === 'open' ? 'حالة البلاغ: تم الارسال' : 'حالة البلاغ: للتعديل'}
+                    title={
+                      ownIssueStatus === 'open'
+                        ? 'نتيجة التنفيذ وملاحظاته مقفلة'
+                        : ownIssueStatus === 'returned'
+                          ? 'أعاد المسؤول البلاغ للتعديل'
+                          : 'تم تحويل ملاحظات السيناريو إلى فريق التطوير'
+                    }
+                    aria-label={
+                      ownIssueStatus === 'open'
+                        ? 'حالة البلاغ: تم الارسال'
+                        : ownIssueStatus === 'returned'
+                          ? 'حالة البلاغ: للتعديل'
+                          : 'حالة البلاغ: تم التحويل'
+                    }
                   >
-                    {ownIssueStatus === 'open' ? 'تم الارسال' : 'للتعديل'}
+                    {ownIssueStatus === 'open'
+                      ? 'تم الارسال'
+                      : ownIssueStatus === 'returned'
+                        ? 'للتعديل'
+                        : issueStatusLabels.resolved}
                   </span>
                 )}
 

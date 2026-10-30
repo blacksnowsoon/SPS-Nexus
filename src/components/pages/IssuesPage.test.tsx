@@ -115,6 +115,10 @@ function renderIssuesPage(
   )
 }
 
+async function expandScenario(user: ReturnType<typeof userEvent.setup>, scenarioTitle: string) {
+  await user.click(screen.getByRole('button', { name: `عرض بلاغات السيناريو ${scenarioTitle}` }))
+}
+
 describe('IssuesPage', () => {
   it('lets admins return and resolve each individual issue report', async () => {
     const user = userEvent.setup()
@@ -125,6 +129,7 @@ describe('IssuesPage', () => {
     }
     renderIssuesPage(true, [issue, anotherIssue], 'admin-1', handlers)
 
+    await expandScenario(user, scenario.title)
     expect(screen.getByText(issue.report)).toBeInTheDocument()
     expect(screen.getByText(anotherIssue.report)).toBeInTheDocument()
     expect(screen.getByText('سارة أحمد')).toBeInTheDocument()
@@ -139,9 +144,45 @@ describe('IssuesPage', () => {
     expect(handlers.onResolveIssue).toHaveBeenCalledWith(anotherIssue.id)
   })
 
-  it('shows all report contents, author names, and execution notes to the team', () => {
+  it('groups issues under scenario metadata and shows the aggregate issue count and state', () => {
+    renderIssuesPage(true, [issue, { ...anotherIssue, status: 'resolved' }])
+
+    expect(screen.getByRole('heading', { name: scenario.title })).toBeInTheDocument()
+    expect(screen.getByText('2 بلاغات')).toBeInTheDocument()
+    expect(screen.getByText('مفتوح')).toBeInTheDocument()
+    expect(screen.getAllByText('المشتريات')).toHaveLength(1)
+    expect(screen.queryByText(issue.report)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `عرض بلاغات السيناريو ${scenario.title}` })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+  })
+
+  it('selects all issues in a scenario and resolves selected unresolved issues in sequence', async () => {
+    const user = userEvent.setup()
+    const handlers = {
+      onReturnIssue: vi.fn(),
+      onResolveIssue: vi.fn().mockResolvedValue(undefined),
+      onUpdateIssue: vi.fn(),
+    }
+    renderIssuesPage(true, [issue, anotherIssue], 'admin-1', handlers)
+
+    await user.click(screen.getByRole('checkbox', { name: `تحديد بلاغات السيناريو ${scenario.title}` }))
+    await expandScenario(user, scenario.title)
+    expect(screen.getByRole('checkbox', { name: 'تحديد بلاغ سارة أحمد - حفظ طلب جديد' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'تحديد بلاغ أحمد علي - حفظ طلب جديد' })).toBeChecked()
+
+    await user.click(screen.getByRole('button', { name: 'حل البلاغات المحددة (2)' }))
+
+    expect(handlers.onResolveIssue).toHaveBeenNthCalledWith(1, issue.id)
+    expect(handlers.onResolveIssue).toHaveBeenNthCalledWith(2, anotherIssue.id)
+  })
+
+  it('shows all report contents, author names, and execution notes to the team when expanded', async () => {
+    const user = userEvent.setup()
     const { container } = renderIssuesPage(false)
 
+    await expandScenario(user, scenario.title)
     expect(screen.getByText('سارة أحمد')).toBeInTheDocument()
     expect(screen.getByText('تفاصيل البلاغ')).toBeInTheDocument()
     expect(screen.getByText(issue.report)).toBeInTheDocument()
@@ -162,6 +203,8 @@ describe('IssuesPage', () => {
       [scenario, anotherScenario],
     )
 
+    await expandScenario(user, scenario.title)
+    await expandScenario(user, anotherScenario.title)
     expect(screen.getByText(issue.report)).toBeInTheDocument()
     expect(screen.getByText(issueInAnotherModule.report)).toBeInTheDocument()
 
@@ -183,6 +226,8 @@ describe('IssuesPage', () => {
       [scenario, anotherScenario],
     )
 
+    await expandScenario(user, scenario.title)
+    await expandScenario(user, anotherScenario.title)
     await user.type(screen.getByRole('searchbox', { name: 'البحث في البلاغات' }), 'حسابي')
     expect(screen.queryByText(issue.report)).not.toBeInTheDocument()
     expect(screen.getByText(issueInAnotherModule.report)).toBeInTheDocument()
@@ -202,6 +247,7 @@ describe('IssuesPage', () => {
     }
     renderIssuesPage(false, [returnedIssue, anotherIssue], 'user-1', handlers)
 
+    await expandScenario(user, scenario.title)
     expect(screen.getAllByRole('textbox', { name: 'تعديل بلاغك' })).toHaveLength(1)
     await user.clear(screen.getByRole('textbox', { name: 'تعديل بلاغك' }))
     await user.type(screen.getByRole('textbox', { name: 'تعديل بلاغك' }), 'تفاصيل أوضح للمشكلة')
@@ -214,6 +260,7 @@ describe('IssuesPage', () => {
     const user = userEvent.setup()
     renderIssuesPage(true)
 
+    await expandScenario(user, scenario.title)
     const excelButton = screen.getByRole('button', { name: 'تصدير Excel' })
     const pdfButton = screen.getByRole('button', { name: 'تصدير PDF' })
     expect(screen.getByText('تفاصيل البلاغ')).toBeInTheDocument()

@@ -44,7 +44,10 @@ const execution: ScenarioExecution = {
   updated_at: '2026-10-26T10:00:00Z',
 }
 
-function renderScenarioDetail(onReportIssue = vi.fn(), ownIssueStatus: 'open' | 'returned' | null = null) {
+function renderScenarioDetail(
+  onReportIssue = vi.fn(),
+  ownIssueStatus: 'open' | 'returned' | 'resolved' | null = null,
+) {
   return render(
     <ScenarioDetail
       scenario={scenario}
@@ -77,12 +80,12 @@ describe('ScenarioDetail issue reporting', () => {
     const confirm = vi.spyOn(window, 'confirm')
     renderScenarioDetail(onReportIssue)
 
-    const reportButton = screen.getByRole('button', { name: 'إرسال بلاغ المشكلة' })
+    const reportButton = screen.getByRole('button', { name: 'إرسال نتائج الاختبار' })
     await user.click(reportButton)
 
     expect(confirm).not.toHaveBeenCalled()
     expect(onReportIssue).toHaveBeenCalledOnce()
-    expect(screen.getByText('البلاغ خاص بنتيجتك ولا يوقف تنفيذ السيناريو لبقية الفريق.')).toBeInTheDocument()
+    expect(screen.getByText('إرسال نتائج الاختبار الخاصة بك')).toBeInTheDocument()
   })
 
   it('locks the execution status and notes after submitting an issue', () => {
@@ -98,5 +101,14 @@ describe('ScenarioDetail issue reporting', () => {
 
     expect(screen.getByRole('textbox', { name: 'ملاحظاتك' })).toBeEnabled()
     expect(screen.getByRole('button', { name: '! فشل' })).toBeEnabled()
+  })
+
+  it('locks the reporter execution and issue form after the admin converts the report', () => {
+    renderScenarioDetail(vi.fn(), 'resolved')
+
+    expect(screen.getByRole('textbox', { name: 'ملاحظاتك' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '! فشل' })).toBeDisabled()
+    expect(screen.getByText('تم تحويل ملاحظات السيناريو الي فريق التطوير')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'إرسال نتائج الاختبار' })).not.toBeInTheDocument()
   })
 })

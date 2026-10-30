@@ -174,89 +174,103 @@ export function IssuesPage({
 
   return (
     <div className="space-y-2">
-      <div className="flex justify-around items-center flex-wrap  p-2 sm:p-1 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
+      <div className={`grid grid-cols-1 gap-3 ${isAdmin ? 'md:grid-cols-2' : ''}`}>
         {isAdmin && (
-        <div className="flex items-center  flex-wrap gap-2 p-1 sm:p-1 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
-          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allVisibleSelected}
-              onChange={(event) =>
-                setSelectedIssueIds((current) => {
-                  const visibleIds = new Set(visibleIssues.map((issue) => issue.id))
-                  return event.target.checked
-                    ? [...new Set([...current, ...visibleIds])]
-                    : current.filter((id) => !visibleIds.has(id))
-                })
-              }
-              aria-label="تحديد كل البلاغات المعروضة"
-              className="accent-blue-600 w-4 h-4 rounded"
-            />
-            <span>تحديد الكل ({visibleIssues.length})</span>
-          </label>
-          <span className="text-xs text-slate-400 ms-auto">تم تحديد {selectedIssues.length}</span>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
-            disabled={selectedUnresolvedIssues.length === 0 || resolvingSelected}
-            onClick={() => void handleResolveSelected()}
-          >
-            {resolvingSelected ? 'جارٍ الحل…' : `تحويل البلاغات المحددة (${selectedUnresolvedIssues.length})`}
-          </button>
-          <button
-            className="inline-flex items-center justify-center px-2 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
-            disabled={selectedIssues.length === 0 || exporting}
-            onClick={() => void handleExport('excel')}
-          >
-            {exporting ? 'جارٍ التصدير…' : 'تصدير Excel'}
-          </button>
-          <button
-            className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
-            disabled={selectedIssues.length === 0 || exporting}
-            onClick={() => void handleExport('pdf')}
-          >
-            تصدير PDF
-          </button>
-          {exportError && (
-            <p className="basis-full text-xs text-rose-600 bg-rose-50 border border-rose-200/60 rounded-lg p-2.5 mt-1">
-              {exportError}
-            </p>
-          )}
-        </div>
-      )}
+          <section className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-bold text-slate-800">تحديد وتصدير البلاغات</span>
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700">
+                تم تحديد {selectedIssues.length}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={(event) =>
+                    setSelectedIssueIds((current) => {
+                      const visibleIds = new Set(visibleIssues.map((issue) => issue.id))
+                      return event.target.checked
+                        ? [...new Set([...current, ...visibleIds])]
+                        : current.filter((id) => !visibleIds.has(id))
+                    })
+                  }
+                  aria-label="تحديد كل البلاغات المعروضة"
+                  className="accent-blue-600 w-4 h-4 rounded"
+                />
+                <span>تحديد الكل ({visibleIssues.length})</span>
+              </label>
+              <button
+                type="button"
+                className="inline-flex flex-1 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={selectedUnresolvedIssues.length === 0 || resolvingSelected}
+                onClick={() => void handleResolveSelected()}
+              >
+                {resolvingSelected ? 'جارٍ الحل…' : `تحويل المحدد (${selectedUnresolvedIssues.length})`}
+              </button>
+              <button
+                type="button"
+                className="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={selectedIssues.length === 0 || exporting}
+                onClick={() => void handleExport('excel')}
+              >
+                {exporting ? 'جارٍ التصدير…' : 'تصدير Excel'}
+              </button>
+              <button
+                type="button"
+                className="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={selectedIssues.length === 0 || exporting}
+                onClick={() => void handleExport('pdf')}
+              >
+                تصدير PDF
+              </button>
+            </div>
+            {exportError && (
+              <p role="alert" className="mt-3 rounded-lg border border-rose-200/60 bg-rose-50 p-2.5 text-xs text-rose-600">
+                {exportError}
+              </p>
+            )}
+          </section>
+        )}
 
-        <div className="flex items-center flex-wrap gap-2 p-1 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
-          <label htmlFor="issue-search" className="text-xs font-semibold text-slate-700">
-            البحث في البلاغات
-          </label>
-          <input
-            id="issue-search"
-            type="search"
-            aria-label="البحث في البلاغات"
-            placeholder="ابحث في التفاصيل أو السيناريو أو المبلّغ"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            className="min-w-[220px] flex-1 border border-slate-200 bg-white rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          />
-          <label htmlFor="issue-module-filter" className="text-xs font-semibold text-slate-700">
-            تصفية حسب النظام
-          </label>
-          <select
-            id="issue-module-filter"
-            aria-label="تصفية بلاغات المشكلات حسب النظام"
-            value={moduleFilter}
-            onChange={(event) => setModuleFilter(event.target.value)}
-            className="min-w-[180px] border border-slate-200 bg-white rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          >
-            <option value="">كل الأنظمة</option>
-            {issueModules.map((module) => (
-              <option key={module} value={module}>{module}</option>
-            ))}
-          </select>
-          <span className="text-xs text-slate-400">
+        <section className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-xs">
+          <div className={"flex justify-between"}>
+            <span className="mb-3 block text-xs font-bold text-slate-800">البحث والتصفية</span>
+            <p className="mb-3 text-[10px] text-slate-400">
             عرض {visibleIssues.length} من {issues.length} بلاغ
-          </span>
-        </div>
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <label htmlFor="issue-search" className="block text-[10px] font-semibold text-slate-500">
+              البحث في البلاغات
+              <input
+                id="issue-search"
+                type="search"
+                aria-label="البحث في البلاغات"
+                placeholder="ابحث في التفاصيل أو السيناريو أو المبلّغ"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="mt-1.5 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 transition-colors focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </label>
+            <label htmlFor="issue-module-filter" className="block text-[10px] font-semibold text-slate-500">
+              تصفية حسب النظام
+              <select
+                id="issue-module-filter"
+                aria-label="تصفية بلاغات المشكلات حسب النظام"
+                value={moduleFilter}
+                onChange={(event) => setModuleFilter(event.target.value)}
+                className="mt-1.5 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium text-slate-700 transition-colors focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                <option value="">كل الأنظمة</option>
+                {issueModules.map((module) => (
+                  <option key={module} value={module}>{module}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
       </div>
 
       

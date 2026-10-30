@@ -172,7 +172,7 @@ describe('IssuesPage', () => {
     expect(screen.getByRole('checkbox', { name: 'تحديد بلاغ سارة أحمد - حفظ طلب جديد' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'تحديد بلاغ أحمد علي - حفظ طلب جديد' })).toBeChecked()
 
-    await user.click(screen.getByRole('button', { name: 'حل البلاغات المحددة (2)' }))
+    await user.click(screen.getByRole('button', { name: 'تحويل المحدد (2)' }))
 
     expect(handlers.onResolveIssue).toHaveBeenNthCalledWith(1, issue.id)
     expect(handlers.onResolveIssue).toHaveBeenNthCalledWith(2, anotherIssue.id)

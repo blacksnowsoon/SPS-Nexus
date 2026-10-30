@@ -12,9 +12,7 @@ import type {
 import {
   formatDate,
   issueStatusLabels,
-  statusLabels,
-  workflowBadgeClasses,
-  workflowLabels,
+  statusLabels
 } from '../constants'
 import { DetailList } from './DetailList'
 
@@ -95,7 +93,6 @@ export function ScenarioDetail({
   }
 
   const currentStatus = execution?.status ?? 'not_tested'
-  const wStatus = workflow?.status ?? 'open'
   const nextStatus = workflow ? nextWorkflowStatus(workflow.status) : null
   const canEditExecution = canExecute && (ownIssueStatus === null || ownIssueStatus === 'returned')
 
@@ -134,10 +131,7 @@ export function ScenarioDetail({
                         : issueStatusLabels.resolved}
                   </span>
                 )}
-        {/* <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${workflowBadgeClasses[wStatus]}`}>
-          {workflowLabels[wStatus]}
-          
-        </span> */}
+        
         {isAdmin && isEditableWorkflow(workflow?.status) && !editing && (
           <button
             className="ms-auto w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center text-xs transition-colors"

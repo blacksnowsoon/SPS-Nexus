@@ -355,133 +355,149 @@ export function IssuesPage({
                   )}
                 </button>
               </header>
-
+              <div>
+                <p className="text-xs text-slate-600 mt-3 whitespace-pre-wrap">{scenario?.description}</p>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <strong className="text-xs text-slate-700">خطوات الاختبار</strong>
+                    <ol className="list-decimal list-inside mt-1 text-xs text-slate-600 space-y-1">
+                      {scenario?.steps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}
+                    </ol>
+                  </div>
+                  <div className="rounded-lg bg-emerald-50/60 p-3">
+                    <strong className="text-xs text-slate-700">النتائج المتوقعة</strong>
+                    <ul className="list-disc list-inside mt-1 text-xs text-slate-600 space-y-1">
+                      {scenario?.expected.map((expected, index) => <li key={`${index}-${expected}`}>{expected}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              </div>
               {isExpanded && (
               <div className="grid grid-cols-1 gap-3.5 pt-3 mt-3 border-t border-slate-100">
                 {scenarioIssues.map((issue) => {
-          const workflow = workflows.find((item) => item.scenario_id === issue.scenario_id)
-          const reporter = reporters.find((item) => item.id === issue.reported_by)
-          const executionNote = executionNotes.find(
-            (item) => item.scenario_id === issue.scenario_id && item.user_id === issue.reported_by,
-          )
-          const canEdit = issue.reported_by === userId && issue.status === 'returned'
-          const draft = reportDrafts[issue.id] ?? issue.report
-          const issueBusy = busyAction.endsWith(issue.id)
+                  const workflow = workflows.find((item) => item.scenario_id === issue.scenario_id)
+                  const reporter = reporters.find((item) => item.id === issue.reported_by)
+                  const executionNote = executionNotes.find(
+                    (item) => item.scenario_id === issue.scenario_id && item.user_id === issue.reported_by,
+                  )
+                  const canEdit = issue.reported_by === userId && issue.status === 'returned'
+                  const draft = reportDrafts[issue.id] ?? issue.report
+                  const issueBusy = busyAction.endsWith(issue.id)
 
-          return (
-            <article
-              className="bg-slate-50/50 border border-slate-200/80 rounded-xl p-4 shadow-2xs flex flex-col justify-between"
-              key={issue.id}
-            >
-              <div>
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                  {isAdmin && (
-                    <input
-                      className="accent-blue-600 w-4 h-4 rounded cursor-pointer"
-                      type="checkbox"
-                      checked={selectedIssueIds.includes(issue.id)}
-                      onChange={(event) => toggleIssue(issue.id, event.target.checked)}
-                      aria-label={`تحديد بلاغ ${reporter?.display_name || 'مستخدم'} - ${scenario?.title ?? issue.scenario_id}`}
-                    />
-                  )}
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${issueStatusBadgeClasses[issue.status]}`}
-                  >
-                    {issueStatusLabels[issue.status]}
-                  </span>
-                </div>
-
-                <div className="border-s-4 border-rose-300 bg-rose-50/50 p-3 rounded-lg mt-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    {reporter?.avatar_url ? (
-                      <img src={reporter.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover" />
-                    ) : (
-                      <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center">
-                        {(reporter?.display_name || 'م').slice(0, 1)}
-                      </span>
-                    )}
-                    <div>
-                      <strong className="text-xs font-semibold text-slate-800 block">
-                        {reporter?.display_name || 'مستخدم'}
-                      </strong>
-                      <small className="text-[10px] text-slate-400 block">
-                        مُبلّغ · {formatDate(issue.created_at)}
-                      </small>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-rose-200/60">
-                    <strong className="text-[12px] font-bold text-rose-800 block">تفاصيل البلاغ</strong>
-                    <p className="text-xs text-slate-700 mt-0.5 whitespace-pre-wrap">{issue.report}</p>
-                  </div>
-
-                  {workflow?.issue_summary && (
-                    <div className="pt-2 border-t border-rose-200/60">
-                      <strong className="text-[12px] font-bold text-rose-800 block">ملخص المعالجة</strong>
-                      <p className="text-xs text-slate-700 mt-0.5">{workflow.issue_summary}</p>
-                    </div>
-                  )}
-
-                  {executionNote?.notes && (
-                    <div className="pt-2 border-t border-rose-200/60">
-                      <strong className="text-[12px] font-bold text-slate-700 block">ملاحظات التنفيذ</strong>
-                      <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{executionNote.notes}</p>
-                    </div>
-                  )}
-                </div>
-
-                {canEdit && (
-                  <div className="block mt-3 text-xs font-semibold text-slate-700">
-                    <label className="block" htmlFor={`issue-report-${issue.id}`}>تعديل بلاغك</label>
-                    <textarea
-                      id={`issue-report-${issue.id}`}
-                      rows={3}
-                      value={draft}
-                      onChange={(event) =>
-                        setReportDrafts((current) => ({ ...current, [issue.id]: event.target.value }))
-                      }
-                      className="mt-1 w-full border border-amber-200 bg-white rounded-xl p-2.5 text-xs text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                    />
-                    <button
-                      type="button"
-                      className="mt-2 inline-flex items-center justify-center px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold disabled:opacity-50"
-                      onClick={() => onUpdateIssue(issue.id, draft.trim())}
-                      disabled={!draft.trim() || issueBusy}
+                  return (
+                    <article
+                      className="bg-slate-50/50 border border-slate-200/80 rounded-xl p-4 shadow-2xs flex flex-col justify-between"
+                      key={issue.id}
                     >
-                      {issueBusy ? 'جارٍ الحفظ…' : 'حفظ التعديل وإعادة الإرسال'}
-                    </button>
-                  </div>
-                )}
-              </div>
+                      <div>
+                        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                          {isAdmin && (
+                            <input
+                              className="accent-blue-600 w-4 h-4 rounded cursor-pointer"
+                              type="checkbox"
+                              checked={selectedIssueIds.includes(issue.id)}
+                              onChange={(event) => toggleIssue(issue.id, event.target.checked)}
+                              aria-label={`تحديد بلاغ ${reporter?.display_name || 'مستخدم'} - ${scenario?.title ?? issue.scenario_id}`}
+                            />
+                          )}
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${issueStatusBadgeClasses[issue.status]}`}
+                          >
+                            {issueStatusLabels[issue.status]}
+                          </span>
+                        </div>
 
-              <div className="flex items-center flex-wrap gap-2 mt-4 pt-3 border-t border-slate-100">
-                <button
-                  className="inline-flex items-center justify-center px-3.5 py-1.5 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
-                  onClick={() => onOpenScenario(issue.scenario_id)}
-                >
-                  عرض السيناريو
-                </button>
-                {isAdmin && issue.status === 'open' && (
-                  <button
-                    className="inline-flex items-center justify-center px-3.5 py-1.5 border border-amber-200 text-amber-800 bg-white hover:bg-amber-50 rounded-xl text-xs font-semibold disabled:opacity-50"
-                    onClick={() => onReturnIssue(issue.id)}
-                    disabled={issueBusy}
-                  >
-                    إعادة للمبلّغ للتعديل
-                  </button>
-                )}
-                {isAdmin && issue.status !== 'resolved' && (
-                  <button
-                    className="inline-flex items-center justify-center px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold disabled:opacity-50"
-                    onClick={() => onResolveIssue(issue.id)}
-                    disabled={issueBusy}
-                  >
-                    تحديد كمحلول
-                  </button>
-                )}
-              </div>
-            </article>
-          )
+                        <div className="border-s-4 border-rose-300 bg-rose-50/50 p-3 rounded-lg mt-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            {reporter?.avatar_url ? (
+                              <img src={reporter.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover" />
+                            ) : (
+                              <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center">
+                                {(reporter?.display_name || 'م').slice(0, 1)}
+                              </span>
+                            )}
+                            <div>
+                              <strong className="text-xs font-semibold text-slate-800 block">
+                                {reporter?.display_name || 'مستخدم'}
+                              </strong>
+                              <small className="text-[10px] text-slate-400 block">
+                                مُبلّغ · {formatDate(issue.created_at)}
+                              </small>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-rose-200/60">
+                            <strong className="text-[12px] font-bold text-rose-800 block">تفاصيل البلاغ</strong>
+                            <p className="text-xs text-slate-700 mt-0.5 whitespace-pre-wrap">{issue.report}</p>
+                          </div>
+
+                          {workflow?.issue_summary && (
+                            <div className="pt-2 border-t border-rose-200/60">
+                              <strong className="text-[12px] font-bold text-rose-800 block">ملخص المعالجة</strong>
+                              <p className="text-xs text-slate-700 mt-0.5">{workflow.issue_summary}</p>
+                            </div>
+                          )}
+
+                          {executionNote?.notes && (
+                            <div className="pt-2 border-t border-rose-200/60">
+                              <strong className="text-[12px] font-bold text-slate-700 block">ملاحظات التنفيذ</strong>
+                              <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{executionNote.notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {canEdit && (
+                          <div className="block mt-3 text-xs font-semibold text-slate-700">
+                            <label className="block" htmlFor={`issue-report-${issue.id}`}>تعديل بلاغك</label>
+                            <textarea
+                              id={`issue-report-${issue.id}`}
+                              rows={3}
+                              value={draft}
+                              onChange={(event) =>
+                                setReportDrafts((current) => ({ ...current, [issue.id]: event.target.value }))
+                              }
+                              className="mt-1 w-full border border-amber-200 bg-white rounded-xl p-2.5 text-xs text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                            />
+                            <button
+                              type="button"
+                              className="mt-2 inline-flex items-center justify-center px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold disabled:opacity-50"
+                              onClick={() => onUpdateIssue(issue.id, draft.trim())}
+                              disabled={!draft.trim() || issueBusy}
+                            >
+                              {issueBusy ? 'جارٍ الحفظ…' : 'حفظ التعديل وإعادة الإرسال'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center flex-wrap gap-2 mt-4 pt-3 border-t border-slate-100">
+                        <button
+                          className="inline-flex items-center justify-center px-3.5 py-1.5 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+                          onClick={() => onOpenScenario(issue.scenario_id)}
+                        >
+                          عرض السيناريو
+                        </button>
+                        {isAdmin && issue.status === 'open' && (
+                          <button
+                            className="inline-flex items-center justify-center px-3.5 py-1.5 border border-amber-200 text-amber-800 bg-white hover:bg-amber-50 rounded-xl text-xs font-semibold disabled:opacity-50"
+                            onClick={() => onReturnIssue(issue.id)}
+                            disabled={issueBusy}
+                          >
+                            إعادة للمبلّغ للتعديل
+                          </button>
+                        )}
+                        {isAdmin && issue.status !== 'resolved' && (
+                          <button
+                            className="inline-flex items-center justify-center px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold disabled:opacity-50"
+                            onClick={() => onResolveIssue(issue.id)}
+                            disabled={issueBusy}
+                          >
+                            تحديد كمحلول
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  )
                 })}
               </div>
               )}

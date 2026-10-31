@@ -556,7 +556,7 @@ function App() {
   }
 
   const deleteRound = async (round: Round) => {
-    if (!supabase || !isAdmin) return
+    if (!supabase || !isAdmin || round.status === "active") return
     setBusyAction(`round-${round.id}`)
     setError('')
     const { error: deleteError } = await supabase.rpc('admin_delete_round', {

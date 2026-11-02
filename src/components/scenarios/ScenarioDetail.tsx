@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { isEditableWorkflow, nextWorkflowStatus } from '../../lib/checklist'
+import { getExecutionNotesDraft, saveExecutionNotesDraft } from '../../lib/execution-notes'
 import type {
   ExecutionStatus,
   IssueStatus,
@@ -24,10 +25,11 @@ export interface ScenarioDetailProps {
   ownIssueStatus: IssueStatus | null
   isAdmin: boolean
   canExecute: boolean
+  userId: string
   busyAction: string
   issueDraft: string
   onIssueDraftChange: (value: string) => void
-  onSaveExecution: (status: ExecutionStatus, notes: string) => void
+  onSaveExecution: (status: ExecutionStatus, notes: string, saveNotes?: boolean) => void
   onReportIssue: () => void
   onTransition: (status: WorkflowStatus) => void
   editing: boolean
@@ -65,6 +67,7 @@ export function ScenarioDetail({
   ownIssueStatus,
   isAdmin,
   canExecute,
+  userId,
   busyAction,
   issueDraft,
   onIssueDraftChange,
@@ -78,7 +81,25 @@ export function ScenarioDetail({
   onCancelEditing,
   onSaveScenario,
 }: ScenarioDetailProps) {
-  const [notes, setNotes] = useState(execution?.notes ?? '')
+  const [initialNotes] = useState(() => {
+    if (!scenario || !userId) return { value: execution?.notes ?? '', error: '' }
+    try {
+      return {
+        value:
+          getExecutionNotesDraft({
+            roundId: scenario.round_id,
+            scenarioId: scenario.scenario_id,
+            userId,
+          }) ?? execution?.notes ?? '',
+        error: '',
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { value: execution?.notes ?? '', error: `تعذر تحميل مسودة الملاحظات: ${message}` }
+    }
+  })
+  const [notes, setNotes] = useState(initialNotes.value)
+  const [notesStorageError, setNotesStorageError] = useState(initialNotes.error)
 
   if (!scenario) {
     return (
@@ -243,7 +264,7 @@ export function ScenarioDetail({
                       isChosen ? pillStyle.chosen : pillStyle.default
                     }`}
                     disabled={!canEditExecution || busyAction === `execution-${scenario.scenario_id}`}
-                    onClick={() => onSaveExecution(isChosen ? 'not_tested' : status, notes)}
+                    onClick={() => onSaveExecution(isChosen ? 'not_tested' : status, execution?.notes ?? '')}
                   >
                     <span className="font-bold text-xs">
                       {status === 'passed' ? '✓' : status === 'failed' ? '!' : '–'}
@@ -264,16 +285,45 @@ export function ScenarioDetail({
                 rows={15}
                 value={notes}
                 disabled={!canEditExecution}
-                onChange={(event) => setNotes(event.target.value)}
-                onBlur={() => {
-                  if (canEditExecution && notes !== (execution?.notes ?? '')) {
-                    onSaveExecution(currentStatus, notes)
+                onChange={(event) => {
+                  const nextNotes = event.target.value
+                  setNotes(nextNotes)
+                  if (!scenario || !userId) return
+                  try {
+                    saveExecutionNotesDraft(
+                      {
+                        roundId: scenario.round_id,
+                        scenarioId: scenario.scenario_id,
+                        userId,
+                      },
+                      nextNotes,
+                    )
+                    setNotesStorageError('')
+                  } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error)
+                    setNotesStorageError(`تعذر حفظ مسودة الملاحظات محليًا: ${message}`)
                   }
                 }}
                 placeholder="سجّل ملاحظاتك أو ما ظهر أثناء الاختبار…"
                 className="mt-1 w-full border border-slate-200 bg-white rounded-xl p-2.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
               />
             </label>
+            {notesStorageError && (
+              <p className="text-xs text-rose-700 mt-1" role="alert">
+                {notesStorageError}
+              </p>
+            )}
+            <button
+              className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
+              onClick={() => onSaveExecution(currentStatus, notes, true)}
+              disabled={
+                !canEditExecution ||
+                notes === (execution?.notes ?? '') ||
+                busyAction === `execution-${scenario.scenario_id}`
+              }
+            >
+              {busyAction === `execution-${scenario.scenario_id}` ? 'جارٍ الحفظ…' : 'حفظ الملاحظات'}
+            </button>
 
             {!canExecute && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200/60 rounded-lg p-2.5 mt-2.5">
@@ -326,7 +376,7 @@ export function ScenarioDetail({
 
             {canExecute && currentStatus !== 'failed' && ownIssueStatus === null && (
               <p className="text-[11px] text-slate-400 mt-2">
-                لتسجيل بلاغ مشكلة، سجّل النتيجة «فشل» لهذا السيناريو أولًا.
+               لارسال ملاحظاتك وتسجيل بلاغ ، سجّل النتيجة «فشل» لهذا السيناريو أولًا. 
               </p>
             )}
           </section>

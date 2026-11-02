@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { countExecutions, filterScenarios } from './lib/checklist'
+import { clearExecutionNotesDraft } from './lib/execution-notes'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 import type {
   ExecutionStatus,
@@ -276,7 +277,12 @@ function App() {
     if (selectedRoundId) await loadRoundContent(selectedRoundId)
   }
 
-  const saveExecution = async (scenario: RoundScenario, status: ExecutionStatus, notes: string) => {
+  const saveExecution = async (
+    scenario: RoundScenario,
+    status: ExecutionStatus,
+    notes: string,
+    saveNotes = false,
+  ) => {
     if (!supabase || !user || !selectedRound || !canExecute) return
     const ownIssueStatus = getOwnIssueStatus(issues, scenario.scenario_id, user.id)
     if (ownIssueStatus && ownIssueStatus !== 'returned') return
@@ -299,6 +305,18 @@ function App() {
     if (saveError) {
       setError(`تعذر حفظ نتيجة الاختبار: ${saveError.message}`)
     } else {
+      if (saveNotes) {
+        try {
+          clearExecutionNotesDraft({
+            roundId: scenario.round_id,
+            scenarioId: scenario.scenario_id,
+            userId: user.id,
+          })
+        } catch (storageError) {
+          const message = storageError instanceof Error ? storageError.message : String(storageError)
+          setError(`تم حفظ الملاحظات ولكن تعذر حذف المسودة المحلية: ${message}`)
+        }
+      }
       setExecutions((current) => [
         ...current.filter((entry) => entry.scenario_id !== scenario.scenario_id || entry.user_id !== user.id),
         data,
@@ -810,11 +828,12 @@ function App() {
               ownIssueStatus={ownIssueStatus}
               isAdmin={isAdmin}
               canExecute={canExecute}
+              userId={user?.id ?? ''}
               busyAction={busyAction}
               issueDraft={issueDraft}
               onIssueDraftChange={setIssueDraft}
-              onSaveExecution={(status, notes) =>
-                selectedScenario && void saveExecution(selectedScenario, status, notes)
+              onSaveExecution={(status, notes, saveNotes) =>
+                selectedScenario && void saveExecution(selectedScenario, status, notes, saveNotes)
               }
               onReportIssue={() => void reportIssue()}
               onTransition={(status) =>

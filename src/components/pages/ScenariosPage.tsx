@@ -33,10 +33,11 @@ export interface ScenariosPageProps {
   ownIssueStatus: IssueStatus | null
   isAdmin: boolean
   canExecute: boolean
+  userId: string
   busyAction: string
   issueDraft: string
   onIssueDraftChange: (value: string) => void
-  onSaveExecution: (status: ExecutionStatus, notes: string) => void
+  onSaveExecution: (status: ExecutionStatus, notes: string, saveNotes?: boolean) => void
   onReportIssue: () => void
   onTransition: (status: WorkflowStatus) => void
   editingScenario: boolean
@@ -70,6 +71,7 @@ export function ScenariosPage({
   ownIssueStatus,
   isAdmin,
   canExecute,
+  userId,
   busyAction,
   issueDraft,
   onIssueDraftChange,
@@ -104,13 +106,14 @@ export function ScenariosPage({
       />
       <ScenarioDetail
         scenario={selectedScenario}
-        key={selectedScenario?.scenario_id ?? 'empty'}
+        key={`${selectedScenario?.round_id ?? 'empty'}:${selectedScenario?.scenario_id ?? 'empty'}:${userId}`}
         workflow={currentWorkflow}
         execution={currentExecution}
         issues={selectedIssues}
         ownIssueStatus={ownIssueStatus}
         isAdmin={isAdmin}
         canExecute={canExecute}
+        userId={userId}
         busyAction={busyAction}
         issueDraft={issueDraft}
         onIssueDraftChange={onIssueDraftChange}

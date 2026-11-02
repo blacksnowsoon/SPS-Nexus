@@ -6,6 +6,7 @@ import { ScenarioDetail } from './ScenarioDetail'
 
 afterEach(() => {
   cleanup()
+  localStorage.clear()
   vi.restoreAllMocks()
 })
 
@@ -47,6 +48,7 @@ const execution: ScenarioExecution = {
 function renderScenarioDetail(
   onReportIssue = vi.fn(),
   ownIssueStatus: 'open' | 'returned' | 'resolved' | null = null,
+  onSaveExecution = vi.fn(),
 ) {
   return render(
     <ScenarioDetail
@@ -57,10 +59,11 @@ function renderScenarioDetail(
       ownIssueStatus={ownIssueStatus}
       isAdmin={false}
       canExecute
+      userId="user-1"
       busyAction=""
       issueDraft="المشكلة تظهر عند الحفظ"
       onIssueDraftChange={vi.fn()}
-      onSaveExecution={vi.fn()}
+      onSaveExecution={onSaveExecution}
       onReportIssue={onReportIssue}
       onTransition={vi.fn()}
       editing={false}
@@ -74,6 +77,21 @@ function renderScenarioDetail(
 }
 
 describe('ScenarioDetail issue reporting', () => {
+  it('caches note edits locally and saves them only when requested', async () => {
+    const user = userEvent.setup()
+    const onSaveExecution = vi.fn()
+    renderScenarioDetail(vi.fn(), null, onSaveExecution)
+
+    await user.type(screen.getByRole('textbox', { name: 'ملاحظاتك' }), 'ملاحظة مؤقتة')
+
+    expect(onSaveExecution).not.toHaveBeenCalled()
+    expect(localStorage.getItem('sps_execution_notes:user-1:round-1:scenario-1')).toBe('ملاحظة مؤقتة')
+
+    await user.click(screen.getByRole('button', { name: 'حفظ الملاحظات' }))
+
+    expect(onSaveExecution).toHaveBeenCalledWith('failed', 'ملاحظة مؤقتة', true)
+  })
+
   it('lets a failed tester report an issue without closing the shared scenario', async () => {
     const user = userEvent.setup()
     const onReportIssue = vi.fn()

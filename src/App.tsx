@@ -19,6 +19,8 @@ import type {
   ScenarioCatalogDraft,
   ScenarioExecution,
   ScenarioIssue,
+  SavedTestSuggestion,
+  TestSuggestion,
   WorkflowStatus,
 } from './types'
 import { pageDescription, pageTitle, roundLabels, type Page } from './components/constants'
@@ -33,6 +35,9 @@ import { IssuesPage } from './components/pages/IssuesPage'
 import { PassedScenariosPage } from './components/pages/PassedScenariosPage'
 import { RoundsPage } from './components/pages/RoundsPage'
 import { ScenarioCatalogPage } from './components/pages/ScenarioCatalogPage'
+import { SuggestionsPage } from './components/pages/SuggestionsPage'
+import type { SuggestionFormValues } from './components/pages/SuggestionForm'
+import { hasRichTextContent, sanitizeRichText } from './lib/rich-text'
 import './App.css'
 
 function getOwnIssueStatus(
@@ -67,6 +72,9 @@ function App() {
   const [issueReporters, setIssueReporters] = useState<IssueReporter[]>([])
   const [executionReporters, setExecutionReporters] = useState<IssueReporter[]>([])
   const [issueExecutionNotes, setIssueExecutionNotes] = useState<IssueExecutionNote[]>([])
+  const [suggestions, setSuggestions] = useState<TestSuggestion[]>([])
+  const [savedSuggestions, setSavedSuggestions] = useState<SavedTestSuggestion[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [workspaceLoading, setWorkspaceLoading] = useState(true)
   const [error, setError] = useState('')
   const [page, setPage] = useState<Page>('overview')
@@ -113,6 +121,39 @@ function App() {
   const selectedScenario = scenarios.find((scenario) => scenario.scenario_id === selectedScenarioId) ?? null
   const canExecute = selectedRound?.status === 'active'
   const modules = useMemo(() => [...new Set(scenarios.map((scenario) => scenario.module))], [scenarios])
+  const suggestionModules = useMemo(
+    () => [...new Set(scenarioCatalog.map((scenario) => scenario.module))],
+    [scenarioCatalog],
+  )
+
+  const loadSuggestions = useCallback(async () => {
+    if (!supabase) return false
+    setSuggestionsLoading(true)
+    const { data, error: suggestionsError } = await supabase.rpc('list_test_suggestions', {})
+    if (suggestionsError) {
+      setError(`تعذر تحميل اقتراحات المختبِرين: ${suggestionsError.message}`)
+      setSuggestionsLoading(false)
+      return false
+    }
+    setSuggestions(data ?? [])
+    setSuggestionsLoading(false)
+    return true
+  }, [])
+
+  const loadSavedSuggestions = useCallback(async (userId: string) => {
+    if (!supabase) return false
+    const { data, error: suggestionsError } = await supabase
+      .from('test_suggestions')
+      .select('id,module,title,description,shared_document_url,created_by,created_at,status')
+      .eq('created_by', userId)
+      .order('created_at', { ascending: false })
+    if (suggestionsError) {
+      setError(`تعذر تحميل اقتراحاتك المحفوظة: ${suggestionsError.message}`)
+      return false
+    }
+    setSavedSuggestions(data ?? [])
+    return true
+  }, [])
 
   const loadProfile = useCallback(async (userId: string) => {
     if (!supabase) return
@@ -147,6 +188,8 @@ function App() {
       setSession(nextSession)
       setProfile(null)
       setProfileError('')
+      setSuggestions([])
+      setSavedSuggestions([])
       if (nextSession?.user.id) {
         window.setTimeout(() => void loadProfile(nextSession.user.id), 0)
       } else {
@@ -159,6 +202,7 @@ function App() {
         setIssueReporters([])
         setExecutionReporters([])
         setIssueExecutionNotes([])
+        setSuggestions([])
       }
     })
 
@@ -244,6 +288,18 @@ function App() {
     const request = window.setTimeout(() => void loadWorkspace(), 0)
     return () => window.clearTimeout(request)
   }, [loadWorkspace, profile?.status])
+
+  useEffect(() => {
+    if (profile?.status !== 'active') return
+    const request = window.setTimeout(() => void loadSuggestions(), 0)
+    return () => window.clearTimeout(request)
+  }, [loadSuggestions, profile?.status])
+
+  useEffect(() => {
+    if (profile?.status !== 'active' || !user?.id) return
+    const request = window.setTimeout(() => void loadSavedSuggestions(user.id), 0)
+    return () => window.clearTimeout(request)
+  }, [loadSavedSuggestions, profile?.status, user?.id])
 
   useEffect(() => {
     if (!selectedRoundId || profile?.status !== 'active') return
@@ -531,6 +587,95 @@ function App() {
     return true
   }
 
+  const saveSuggestion = async (
+    values: SuggestionFormValues,
+    suggestionId: string | null,
+  ): Promise<string | null> => {
+    if (!supabase || !user) {
+      setError('تعذر إرسال الاقتراح: لم يتم العثور على جلسة مستخدم نشطة.')
+      return null
+    }
+    const description = sanitizeRichText(values.description)
+    if (!hasRichTextContent(description)) {
+      setError('تعذر حفظ الاقتراح: الوصف مطلوب.')
+      return null
+    }
+
+    setBusyAction('suggestion-save')
+    setError('')
+    const draft = {
+      module: values.module,
+      title: values.title,
+      description,
+      shared_document_url: values.sharedDocumentUrl || null,
+      status: 'draft' as const,
+    }
+    const result = suggestionId
+      ? await supabase
+        .from('test_suggestions')
+        .update(draft)
+        .eq('id', suggestionId)
+        .eq('created_by', user.id)
+        .select('id,module,title,description,shared_document_url,created_by,created_at,status')
+        .single()
+      : await supabase
+        .from('test_suggestions')
+        .insert({
+          ...draft,
+          created_by: user.id,
+        })
+        .select('id,module,title,description,shared_document_url,created_by,created_at,status')
+        .single()
+
+    if (result.error) {
+      setError(`تعذر حفظ الاقتراح: ${result.error.message}`)
+      setBusyAction('')
+      return null
+    }
+    setSavedSuggestions((current) => [
+      result.data,
+      ...current.filter((item) => item.id !== result.data.id),
+    ])
+    setSuccessMessage('تم حفظ الاقتراح كمسودة. يمكنك إرساله بعد الحفظ.')
+    setBusyAction('')
+    return result.data.id
+  }
+
+  const sendSuggestion = async (suggestionId: string): Promise<boolean> => {
+    if (!supabase || !user) {
+      setError('تعذر إرسال الاقتراح: لم يتم العثور على جلسة مستخدم نشطة.')
+      return false
+    }
+    setBusyAction(`suggestion-send-${suggestionId}`)
+    setError('')
+    const { data, error: sendError } = await supabase
+      .from('test_suggestions')
+      .update({ status: 'sent' })
+      .eq('id', suggestionId)
+      .eq('created_by', user.id)
+      .eq('status', 'draft')
+      .select('id')
+      .single()
+    if (sendError) {
+      setError(`تعذر إرسال الاقتراح: ${sendError.message}`)
+      setBusyAction('')
+      return false
+    }
+    if (!data) {
+      setError('تعذر إرسال الاقتراح: لم يتم العثور على مسودة محفوظة.')
+      setBusyAction('')
+      return false
+    }
+
+    setSavedSuggestions((current) =>
+      current.map((item) => item.id === suggestionId ? { ...item, status: 'sent' } : item),
+    )
+    setSuccessMessage('تم إرسال الاقتراح إلى فريق الاختبار.')
+    await loadSuggestions()
+    setBusyAction('')
+    return true
+  }
+
   const updateRoundStatus = async (round: Round, status: RoundStatus) => {
     if (!supabase || !isAdmin) return
     setBusyAction(`round-${round.id}`)
@@ -711,9 +856,14 @@ function App() {
                   {roundLabels[selectedRound.status]}
                 </span>
               )}
+
               <button
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-xl text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
-                onClick={() => void refreshRound()}
+                onClick={() => {
+                  void refreshRound()
+                  if (page === 'suggestions') void loadSuggestions()
+                  if (page === 'scenarios' && user?.id) void loadSavedSuggestions(user.id)
+                }}
                 disabled={workspaceLoading}
               >
                 <span aria-hidden="true">↻</span> تحديث
@@ -763,7 +913,7 @@ function App() {
             </div>
           )}
 
-          {!selectedRound && !workspaceLoading && page !== 'scenario-catalog' && (
+          {!selectedRound && !workspaceLoading && page !== 'scenario-catalog' && page !== 'suggestions' && (
             <section className="bg-white border border-slate-200/90 rounded-2xl p-10 sm:p-14 text-center shadow-xs mt-6">
               <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 font-bold text-xl flex items-center justify-center mx-auto mb-3">
                 ♻️
@@ -817,6 +967,11 @@ function App() {
               moduleFilter={moduleFilter}
               onModuleFilterChange={setModuleFilter}
               modules={modules}
+              suggestionModules={suggestionModules}
+              savedSuggestions={savedSuggestions}
+              suggestionBusyAction={busyAction.startsWith('suggestion-') ? busyAction : ''}
+              onSaveSuggestion={saveSuggestion}
+              onSendSuggestion={sendSuggestion}
               lifecycleFilter={lifecycleFilter}
               onLifecycleFilterChange={setLifecycleFilter}
               executionFilter={executionFilter}
@@ -936,6 +1091,10 @@ function App() {
               busyAction={busyAction}
               onSave={saveCatalogScenario}
             />
+          )}
+
+          {page === 'suggestions' && (
+            <SuggestionsPage suggestions={suggestions} loading={suggestionsLoading} />
           )}
         </main>
       </div>

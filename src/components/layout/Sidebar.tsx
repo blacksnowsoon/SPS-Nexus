@@ -103,7 +103,7 @@ export function Sidebar({
       )}
 
       <nav
-        className={`grid gap-1 ${isAdmin ? 'max-md:grid-cols-6' : 'max-md:grid-cols-5'} max-md:h-full max-md:items-center max-md:gap-0.5`}
+        className={`grid gap-1 ${isAdmin ? 'max-md:grid-cols-7' : 'max-md:grid-cols-6'} max-md:h-full max-md:items-center max-md:gap-0.5`}
         aria-label="التنقل الرئيسي"
       >
         <NavButton
@@ -114,6 +114,16 @@ export function Sidebar({
           collapsed={collapsed}
         >
           <span>نظرة عامة</span>
+        </NavButton>
+
+        <NavButton
+          active={page === 'suggestions'}
+          onClick={() => onPageChange('suggestions')}
+          icon="✦"
+          title="اقتراحات المختبِرين"
+          collapsed={collapsed}
+        >
+          <span>الاقتراحات</span>
         </NavButton>
 
         <NavButton

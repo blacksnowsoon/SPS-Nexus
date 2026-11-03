@@ -1,0 +1,102 @@
+import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { SuggestionForm, type SuggestionFormValues } from './SuggestionForm'
+import type { SavedTestSuggestion } from '../../types'
+
+const sentSuggestion: SavedTestSuggestion = {
+  id: 'sent-1',
+  module: 'المستخدمون',
+  title: 'اقتراح محفوظ',
+  description: '<p>الوصف الأصلي</p>',
+  shared_document_url: null,
+  created_by: 'tester-1',
+  created_at: '2026-11-03T10:00:00.000Z',
+  status: 'sent',
+}
+
+describe('SuggestionForm', () => {
+  beforeEach(() => {
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: vi.fn() })
+  })
+
+  afterEach(() => cleanup())
+
+  it('submits the selected module, title, rich description, and optional link', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn<(values: SuggestionFormValues, id: string | null) => Promise<string | null>>().mockResolvedValue('saved-1')
+    const onSend = vi.fn<(id: string) => Promise<boolean>>().mockResolvedValue(true)
+    render(<SuggestionForm modules={['المستخدمون']} savedSuggestions={[]} busyAction="" onSave={onSave} onSend={onSend} />)
+
+    const saveButton = screen.getByRole('button', { name: 'حفظ المسودة' })
+    const sendButton = screen.getByRole('button', { name: 'إرسال الاقتراح' })
+    const descriptionEditor = screen.getByRole('textbox', { name: 'وصف الاقتراح' })
+    expect(saveButton).toBeDisabled()
+    expect(sendButton).toBeDisabled()
+    expect(descriptionEditor).toHaveClass('resize-y', 'min-h-52')
+    expect(descriptionEditor.innerHTML).toBe('<p><br></p>')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'الوحدة' }), 'المستخدمون')
+    await user.type(screen.getByRole('textbox', { name: 'عنوان الاقتراح' }), 'تحسين التحقق')
+    await user.type(screen.getByRole('textbox', { name: 'وصف الاقتراح' }), 'أضف حالة اختبار جديدة')
+    await user.type(screen.getByRole('textbox', { name: /رابط مستند مشترك/ }), 'https://example.com/doc')
+    expect(saveButton).toBeEnabled()
+    expect(sendButton).toBeDisabled()
+    await user.click(saveButton)
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      module: 'المستخدمون',
+      title: 'تحسين التحقق',
+      description: expect.stringContaining('أضف حالة اختبار جديدة'),
+      sharedDocumentUrl: 'https://example.com/doc',
+    }), null)
+    expect(sendButton).toBeEnabled()
+    expect(saveButton).toBeDisabled()
+    await user.click(sendButton)
+    expect(onSend).toHaveBeenCalledWith('saved-1')
+  })
+
+  it('rejects invalid external document links', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn<(values: SuggestionFormValues, id: string | null) => Promise<string | null>>().mockResolvedValue('saved-1')
+    const onSend = vi.fn<(id: string) => Promise<boolean>>().mockResolvedValue(true)
+    render(<SuggestionForm modules={['المستخدمون']} savedSuggestions={[]} busyAction="" onSave={onSave} onSend={onSend} />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'الوحدة' }), 'المستخدمون')
+    await user.type(screen.getByRole('textbox', { name: 'عنوان الاقتراح' }), 'تحسين التحقق')
+    await user.type(screen.getByRole('textbox', { name: 'وصف الاقتراح' }), 'وصف كافٍ')
+    await user.type(screen.getByRole('textbox', { name: /رابط مستند مشترك/ }), 'ftp://example.com/doc')
+    await user.click(screen.getByRole('button', { name: 'حفظ المسودة' }))
+
+    expect(onSave).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('رابط مشاركة صالحًا')
+  })
+
+  it('marks sent suggestions and requires saving edits before they can be sent again', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn<(values: SuggestionFormValues, id: string | null) => Promise<string | null>>().mockResolvedValue('sent-1')
+    const onSend = vi.fn<(id: string) => Promise<boolean>>().mockResolvedValue(true)
+    render(
+      <SuggestionForm
+        modules={['المستخدمون']}
+        savedSuggestions={[sentSuggestion]}
+        busyAction=""
+        onSave={onSave}
+        onSend={onSend}
+      />,
+    )
+
+    expect(screen.getByText('تم الإرسال')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'تعديل وإعادة الإرسال' }))
+    const title = screen.getByRole('textbox', { name: 'عنوان الاقتراح' })
+    await user.clear(title)
+    await user.type(title, 'اقتراح محدث')
+
+    const sendButton = screen.getByRole('button', { name: 'إرسال الاقتراح' })
+    expect(sendButton).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'حفظ المسودة' }))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ title: 'اقتراح محدث' }), 'sent-1')
+    expect(sendButton).toBeEnabled()
+    await user.click(sendButton)
+    expect(onSend).toHaveBeenCalledWith('sent-1')
+  })
+})

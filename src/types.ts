@@ -99,6 +99,22 @@ export interface ScenarioIssue {
   created_at: string
 }
 
+export interface SavedTestSuggestion {
+  id: string
+  module: string
+  title: string
+  description: string
+  shared_document_url: string | null
+  created_by: string
+  created_at: string
+  status: 'draft' | 'sent'
+}
+
+export interface TestSuggestion extends SavedTestSuggestion {
+  author_name: string | null
+  avatar_url: string | null
+}
+
 export interface IssueReporter {
   id: string
   display_name: string | null
@@ -195,6 +211,18 @@ export interface Database {
         Row: ScenarioIssue & { updated_at: string } & Record<string, unknown>
         Insert: never
         Update: never
+        Relationships: []
+      }
+      test_suggestions: {
+        Row: SavedTestSuggestion & { updated_at: string } & Record<string, unknown>
+        Insert: {
+          module: string
+          title: string
+          description: string
+          shared_document_url?: string | null
+          created_by: string
+        } & Record<string, unknown>
+        Update: Partial<Pick<SavedTestSuggestion, 'module' | 'title' | 'description' | 'shared_document_url' | 'status'>> & Record<string, unknown>
         Relationships: []
       }
     }
@@ -294,6 +322,10 @@ export interface Database {
       tester_update_issue: {
         Args: { p_issue_id: string; p_report: string }
         Returns: undefined
+      }
+      list_test_suggestions: {
+        Args: Record<string, never>
+        Returns: TestSuggestion[]
       }
     }
     Enums: Record<string, never>

@@ -50,6 +50,8 @@ Use `role = 'tester'` for normal users. Do not grant roles based on email/provid
 
 Admins can select issue reports on the Issues page and export the selection as an Excel workbook or a print-ready PDF. PDF export opens the browser print dialog; choose **Save as PDF** to download it.
 
+Testers can draft, edit, and send suggestions from the **Add suggestion** tab on the Scenarios page. Saved drafts remain private to their author until sent; sent suggestions are shared on the suggestions page with the author's profile, module, description, and optional shared-document link. The `202611030001_test_suggestions.sql` migration adds the required storage and access policies.
+
 ## Development checks
 
 ```powershell

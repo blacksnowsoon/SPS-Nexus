@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type {
   ExecutionStatus,
   IssueStatus,
@@ -5,10 +6,12 @@ import type {
   RoundWorkflow,
   ScenarioExecution,
   ScenarioIssue,
+  SavedTestSuggestion,
   WorkflowStatus,
 } from '../../types'
 import { ScenarioBrowser } from '../scenarios/ScenarioBrowser'
 import { ScenarioDetail } from '../scenarios/ScenarioDetail'
+import { SuggestionForm, type SuggestionFormValues } from './SuggestionForm'
 
 export interface ScenariosPageProps {
   scenarios: RoundScenario[]
@@ -22,6 +25,11 @@ export interface ScenariosPageProps {
   moduleFilter: string
   onModuleFilterChange: (value: string) => void
   modules: string[]
+  suggestionModules: string[]
+  savedSuggestions: SavedTestSuggestion[]
+  suggestionBusyAction: string
+  onSaveSuggestion: (values: SuggestionFormValues, suggestionId: string | null) => Promise<string | null>
+  onSendSuggestion: (suggestionId: string) => Promise<boolean>
   lifecycleFilter: string
   onLifecycleFilterChange: (value: string) => void
   executionFilter: string
@@ -60,6 +68,11 @@ export function ScenariosPage({
   moduleFilter,
   onModuleFilterChange,
   modules,
+  suggestionModules,
+  savedSuggestions,
+  suggestionBusyAction,
+  onSaveSuggestion,
+  onSendSuggestion,
   lifecycleFilter,
   onLifecycleFilterChange,
   executionFilter,
@@ -85,6 +98,8 @@ export function ScenariosPage({
   onCancelEditing,
   onSaveScenario,
 }: ScenariosPageProps) {
+  const [activeTab, setActiveTab] = useState<'details' | 'suggestion'>('details')
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_minmax(0,2fr)] gap-4 items-start">
       <ScenarioBrowser
@@ -104,29 +119,65 @@ export function ScenariosPage({
         executionFilter={executionFilter}
         onExecutionFilterChange={onExecutionFilterChange}
       />
-      <ScenarioDetail
-        scenario={selectedScenario}
-        key={`${selectedScenario?.round_id ?? 'empty'}:${selectedScenario?.scenario_id ?? 'empty'}:${userId}`}
-        workflow={currentWorkflow}
-        execution={currentExecution}
-        issues={selectedIssues}
-        ownIssueStatus={ownIssueStatus}
-        isAdmin={isAdmin}
-        canExecute={canExecute}
-        userId={userId}
-        busyAction={busyAction}
-        issueDraft={issueDraft}
-        onIssueDraftChange={onIssueDraftChange}
-        onSaveExecution={onSaveExecution}
-        onReportIssue={onReportIssue}
-        onTransition={onTransition}
-        editing={editingScenario}
-        editValues={editValues}
-        onEditValue={onEditValue}
-        onStartEditing={onStartEditing}
-        onCancelEditing={onCancelEditing}
-        onSaveScenario={onSaveScenario}
-      />
+      <section className="min-w-0">
+        <div className="mb-3 flex gap-1 border-b border-slate-200" role="tablist" aria-label="محتوى السيناريوهات">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'details'}
+            className={`border-b-2 px-4 py-2.5 text-xs font-semibold ${
+              activeTab === 'details' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+            onClick={() => setActiveTab('details')}
+          >
+            تفاصيل السيناريو
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'suggestion'}
+            className={`border-b-2 px-4 py-2.5 text-xs font-semibold ${
+              activeTab === 'suggestion' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+            onClick={() => setActiveTab('suggestion')}
+          >
+            أضف مقترح
+          </button>
+        </div>
+        {activeTab === 'details' ? (
+          <ScenarioDetail
+            scenario={selectedScenario}
+            key={`${selectedScenario?.round_id ?? 'empty'}:${selectedScenario?.scenario_id ?? 'empty'}:${userId}`}
+            workflow={currentWorkflow}
+            execution={currentExecution}
+            issues={selectedIssues}
+            ownIssueStatus={ownIssueStatus}
+            isAdmin={isAdmin}
+            canExecute={canExecute}
+            userId={userId}
+            busyAction={busyAction}
+            issueDraft={issueDraft}
+            onIssueDraftChange={onIssueDraftChange}
+            onSaveExecution={onSaveExecution}
+            onReportIssue={onReportIssue}
+            onTransition={onTransition}
+            editing={editingScenario}
+            editValues={editValues}
+            onEditValue={onEditValue}
+            onStartEditing={onStartEditing}
+            onCancelEditing={onCancelEditing}
+            onSaveScenario={onSaveScenario}
+          />
+        ) : (
+          <SuggestionForm
+            modules={suggestionModules}
+            savedSuggestions={savedSuggestions}
+            busyAction={suggestionBusyAction}
+            onSave={onSaveSuggestion}
+            onSend={onSendSuggestion}
+          />
+        )}
+      </section>
     </div>
   )
 }

@@ -1,6 +1,6 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SuggestionForm, type SuggestionFormValues } from './SuggestionForm'
 import type { SavedTestSuggestion } from '../../types'
 
@@ -15,8 +15,68 @@ const sentSuggestion: SavedTestSuggestion = {
   status: 'sent',
 }
 
+const paste = (target: HTMLElement, data: Record<string, string>) => {
+  const event = new Event('paste', { bubbles: true, cancelable: true })
+  Object.defineProperty(event, 'clipboardData', {
+    value: { types: Object.keys(data), getData: (type: string) => data[type] ?? '' },
+  })
+  fireEvent(target, event)
+}
+
 describe('SuggestionForm', () => {
+  beforeEach(() => localStorage.clear())
   afterEach(() => cleanup())
+
+  it('keeps pasted description text when clicking inside the editor', async () => {
+    render(<SuggestionForm modules={['المستخدمون']} savedSuggestions={[]} busyAction="" onSave={vi.fn()} onSend={vi.fn()} />)
+
+    const descriptionEditor = screen.getByRole('textbox', { name: 'وصف الاقتراح' })
+    paste(descriptionEditor, { 'text/html': '<p>Pasted text</p>', 'text/plain': 'Pasted text' })
+    await waitFor(() => expect(descriptionEditor).toHaveTextContent('Pasted text'))
+    fireEvent.click(descriptionEditor)
+
+    expect(descriptionEditor).toHaveTextContent('Pasted text')
+  })
+
+  it('restores an unsaved draft after remounting and clears it once saved and sent', async () => {
+    const user = userEvent.setup()
+    const draftKey = 'sps_suggestion_draft:tester-1'
+    const props = {
+      modules: ['المستخدمون'],
+      savedSuggestions: [],
+      busyAction: '',
+      onSave: vi.fn<(values: SuggestionFormValues, id: string | null) => Promise<string | null>>().mockResolvedValue('saved-1'),
+      onSend: vi.fn<(id: string) => Promise<boolean>>().mockResolvedValue(true),
+      userId: 'tester-1',
+    }
+    const { unmount } = render(<SuggestionForm {...props} />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'الوحدة' }), 'المستخدمون')
+    await user.type(screen.getByRole('textbox', { name: 'عنوان الاقتراح' }), 'مسودة غير محفوظة')
+    expect(localStorage.getItem(draftKey)).toContain('مسودة غير محفوظة')
+    unmount()
+
+    render(<SuggestionForm {...props} />)
+    expect(screen.getByRole('textbox', { name: 'عنوان الاقتراح' })).toHaveValue('مسودة غير محفوظة')
+    expect(screen.getByRole('combobox', { name: 'الوحدة' })).toHaveValue('المستخدمون')
+
+    const descriptionEditor = screen.getByRole('textbox', { name: 'وصف الاقتراح' })
+    descriptionEditor.innerHTML = '<p>Description</p>'
+    fireEvent.input(descriptionEditor)
+    await waitFor(() => expect(localStorage.getItem(draftKey)).toContain('Description'))
+
+    await user.click(screen.getByRole('button', { name: 'حفظ المسودة' }))
+    expect(props.onSave).toHaveBeenCalled()
+    await waitFor(() => expect(localStorage.getItem(draftKey)).toBeNull())
+
+    await user.type(screen.getByRole('textbox', { name: 'عنوان الاقتراح' }), '!')
+    expect(localStorage.getItem(draftKey)).not.toBeNull()
+    await user.type(screen.getByRole('textbox', { name: 'عنوان الاقتراح' }), '{Backspace}')
+    await user.click(screen.getByRole('button', { name: 'إرسال الاقتراح' }))
+    expect(props.onSend).toHaveBeenCalledWith('saved-1')
+    expect(localStorage.getItem(draftKey)).toBeNull()
+    expect(screen.getByRole('textbox', { name: 'عنوان الاقتراح' })).toHaveValue('')
+  }, 20_000)
 
   it('submits the selected module, title, rich description, and optional link', async () => {
     const user = userEvent.setup()

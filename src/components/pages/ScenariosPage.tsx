@@ -175,6 +175,7 @@ export function ScenariosPage({
             busyAction={suggestionBusyAction}
             onSave={onSaveSuggestion}
             onSend={onSendSuggestion}
+            userId={userId}
           />
         )}
       </section>

@@ -149,7 +149,7 @@ describe('IssuesPage', () => {
 
     expect(screen.getByRole('heading', { name: scenario.title })).toBeInTheDocument()
     expect(screen.getByText('2 بلاغات')).toBeInTheDocument()
-    expect(screen.getByText('مفتوح')).toBeInTheDocument()
+    expect(screen.getByText('مفتوح', { selector: 'span' })).toBeInTheDocument()
     expect(screen.getAllByText('المشتريات')).toHaveLength(1)
     expect(screen.queryByText(issue.report)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: `عرض بلاغات السيناريو ${scenario.title}` })).toHaveAttribute(
@@ -213,6 +213,33 @@ describe('IssuesPage', () => {
     expect(screen.queryByText(issue.report)).not.toBeInTheDocument()
     expect(screen.getByText(issueInAnotherModule.report)).toBeInTheDocument()
     expect(screen.getByText('عرض 1 من 2 بلاغ')).toBeInTheDocument()
+  })
+
+  it('filters issues by status', async () => {
+    const user = userEvent.setup()
+    const returnedIssue = { ...anotherIssue, report: 'البلاغ المعاد', status: 'returned' as const }
+    const resolvedIssue = {
+      ...anotherIssue,
+      id: 'issue-3',
+      report: 'البلاغ المحلول',
+      status: 'resolved' as const,
+    }
+    renderIssuesPage(false, [issue, returnedIssue, resolvedIssue])
+
+    await expandScenario(user, scenario.title)
+    const statusFilter = screen.getByRole('combobox', { name: 'تصفية بلاغات المشكلات حسب الحالة' })
+
+    await user.selectOptions(statusFilter, 'resolved')
+
+    expect(screen.getByText(resolvedIssue.report)).toBeInTheDocument()
+    expect(screen.queryByText(issue.report)).not.toBeInTheDocument()
+    expect(screen.queryByText(returnedIssue.report)).not.toBeInTheDocument()
+    expect(screen.getByText('عرض 1 من 3 بلاغ')).toBeInTheDocument()
+
+    await user.selectOptions(statusFilter, 'returned')
+
+    expect(screen.getByText(returnedIssue.report)).toBeInTheDocument()
+    expect(screen.queryByText(resolvedIssue.report)).not.toBeInTheDocument()
   })
 
   it('searches issue details and combines search with the module filter', async () => {

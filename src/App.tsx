@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { countExecutions, filterScenarios } from './lib/checklist'
 import { clearExecutionNotesDraft } from './lib/execution-notes'
+import { readNavigationState, saveNavigationState } from './lib/navigation-state'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 import type {
   ExecutionStatus,
@@ -64,7 +65,8 @@ function App() {
   const [project, setProject] = useState<Project | null>(null)
   const [rounds, setRounds] = useState<Round[]>([])
   const [activeMemberCount, setActiveMemberCount] = useState(0)
-  const [selectedRoundId, setSelectedRoundId] = useState('')
+  const [initialNavigation] = useState(readNavigationState)
+  const [selectedRoundId, setSelectedRoundId] = useState(initialNavigation.roundId)
   const [scenarios, setScenarios] = useState<RoundScenario[]>([])
   const [workflows, setWorkflows] = useState<RoundWorkflow[]>([])
   const [executions, setExecutions] = useState<ScenarioExecution[]>([])
@@ -77,12 +79,12 @@ function App() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [workspaceLoading, setWorkspaceLoading] = useState(true)
   const [error, setError] = useState('')
-  const [page, setPage] = useState<Page>('overview')
+  const [page, setPage] = useState<Page>(initialNavigation.page)
   const [search, setSearch] = useState('')
   const [moduleFilter, setModuleFilter] = useState('')
   const [lifecycleFilter, setLifecycleFilter] = useState('')
   const [executionFilter, setExecutionFilter] = useState('')
-  const [selectedScenarioId, setSelectedScenarioId] = useState('')
+  const [selectedScenarioId, setSelectedScenarioId] = useState(initialNavigation.scenarioId)
   const [busyAction, setBusyAction] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [issueDraft, setIssueDraft] = useState('')
@@ -112,6 +114,8 @@ function App() {
   }
 
   const user = session?.user
+  const userId = user?.id
+  const sessionUserIdRef = useRef<string | null>(null)
   const isAdmin = profile?.role === 'admin' && profile.status === 'active'
   const selectedRound = rounds.find((round) => round.id === selectedRoundId) ?? null
   const currentWorkflow = workflows.find((workflow) => workflow.scenario_id === selectedScenarioId)
@@ -179,12 +183,20 @@ function App() {
     void supabase.auth.getSession().then(({ data, error: sessionError }) => {
       if (!alive) return
       if (sessionError) setAuthError(sessionError.message)
+      sessionUserIdRef.current = data.session?.user.id ?? null
       setSession(data.session)
       setAuthLoading(false)
       if (data.session?.user.id) void loadProfile(data.session.user.id)
     })
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      const nextUserId = nextSession?.user.id ?? null
+      // Supabase re-emits SIGNED_IN / TOKEN_REFRESHED when the tab regains focus; keep the workspace mounted.
+      if (nextUserId && nextUserId === sessionUserIdRef.current) {
+        setSession(nextSession)
+        return
+      }
+      sessionUserIdRef.current = nextUserId
       setSession(nextSession)
       setProfile(null)
       setProfileError('')
@@ -254,7 +266,7 @@ function App() {
   }, [])
 
   const loadWorkspace = useCallback(async () => {
-    if (!supabase || !user || profile?.status !== 'active') return
+    if (!supabase || !userId || profile?.status !== 'active') return
     const [projectResult, roundsResult, memberResult, catalogResult] = await Promise.all([
       supabase.from('projects').select('*').order('created_at').limit(1).maybeSingle(),
       supabase.from('rounds').select('*').order('created_at', { ascending: false }),
@@ -281,7 +293,7 @@ function App() {
       return nextRounds.find((round) => round.status === 'active')?.id ?? nextRounds[0]?.id ?? ''
     })
     setWorkspaceLoading(false)
-  }, [isAdmin, profile?.status, user])
+  }, [isAdmin, profile?.status, userId])
 
   useEffect(() => {
     if (profile?.status !== 'active') return
@@ -300,6 +312,10 @@ function App() {
     const request = window.setTimeout(() => void loadSavedSuggestions(user.id), 0)
     return () => window.clearTimeout(request)
   }, [loadSavedSuggestions, profile?.status, user?.id])
+
+  useEffect(() => {
+    saveNavigationState({ page, roundId: selectedRoundId, scenarioId: selectedScenarioId })
+  }, [page, selectedRoundId, selectedScenarioId])
 
   useEffect(() => {
     if (!selectedRoundId || profile?.status !== 'active') return

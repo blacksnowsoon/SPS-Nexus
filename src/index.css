@@ -50,3 +50,39 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   content: attr(data-placeholder);
   pointer-events: none;
 }
+
+.rich-text-content :is(ol, ul) {
+  padding-inline-start: 1.5rem;
+}
+
+.rich-text-content ol {
+  list-style-type: decimal;
+}
+
+.rich-text-content ul {
+  list-style-type: disc;
+}
+
+.rich-text-content ul ul {
+  list-style-type: circle;
+}
+
+.rich-text-content ul ul ul {
+  list-style-type: square;
+}
+
+.rich-text-content ol[type='a' s] {
+  list-style-type: lower-alpha;
+}
+
+.rich-text-content ol[type='A' s] {
+  list-style-type: upper-alpha;
+}
+
+.rich-text-content ol[type='i' s] {
+  list-style-type: lower-roman;
+}
+
+.rich-text-content ol[type='I' s] {
+  list-style-type: upper-roman;
+}

@@ -113,6 +113,7 @@ export interface SavedTestSuggestion {
 export interface TestSuggestion extends SavedTestSuggestion {
   author_name: string | null
   avatar_url: string | null
+  updated_at?: string
 }
 
 export interface IssueReporter {

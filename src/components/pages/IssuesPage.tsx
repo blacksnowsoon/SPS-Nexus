@@ -48,6 +48,7 @@ export function IssuesPage({
 }: IssuesPageProps) {
   const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([])
   const [moduleFilter, setModuleFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [reportDrafts, setReportDrafts] = useState<Record<string, string>>({})
   const [exportError, setExportError] = useState('')
@@ -75,6 +76,7 @@ export function IssuesPage({
           (item) => item.scenario_id === issue.scenario_id && item.user_id === issue.reported_by,
         )
         const matchesModule = !moduleFilter || scenario?.module === moduleFilter
+        const matchesStatus = !statusFilter || issue.status === statusFilter
         const searchableText = [
           issue.report,
           scenario?.title,
@@ -90,10 +92,10 @@ export function IssuesPage({
           .join(' ')
           .toLocaleLowerCase()
 
-        return matchesModule && (!normalizedQuery || searchableText.includes(normalizedQuery))
+        return matchesModule && matchesStatus && (!normalizedQuery || searchableText.includes(normalizedQuery))
       })
     },
-    [executionNotes, issues, moduleFilter, reporters, scenarios, searchQuery, workflows],
+    [executionNotes, issues, moduleFilter, reporters, scenarios, searchQuery, statusFilter, workflows],
   )
   const selectedIssues = useMemo(
     () => issues.filter((issue) => selectedIssueIds.includes(issue.id)),
@@ -233,7 +235,7 @@ export function IssuesPage({
             )}
           </section>
         )}
-
+        {/* issues filter bar */}
         <section className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-xs">
           <div className={"flex justify-between"}>
             <span className="mb-3 block text-xs font-bold text-slate-800">البحث والتصفية</span>
@@ -269,6 +271,21 @@ export function IssuesPage({
                 ))}
               </select>
             </label>
+            <label htmlFor="issue-status-filter" className="block text-[10px] font-semibold text-slate-500">
+              تصفية حسب الحالة
+              <select
+                id="issue-status-filter"
+                aria-label="تصفية بلاغات المشكلات حسب الحالة"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as IssueStatus | '')}
+                className="mt-1.5 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium text-slate-700 transition-colors focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                <option value="">كل الحالات</option>
+                {(Object.keys(issueStatusLabels) as IssueStatus[]).map((status) => (
+                  <option key={status} value={status}>{issueStatusLabels[status]}</option>
+                ))}
+              </select>
+            </label>
           </div>
         </section>
       </div>
@@ -277,8 +294,12 @@ export function IssuesPage({
 
       {visibleIssues.length === 0 ? (
         <EmptyState
-          title={searchQuery.trim() ? 'لا توجد بلاغات تطابق البحث' : 'لا توجد بلاغات لهذا النظام'}
-          body="غيّر كلمات البحث أو اختر نظامًا آخر."
+          title={searchQuery.trim()
+            ? 'لا توجد بلاغات تطابق البحث'
+            : moduleFilter || statusFilter
+              ? 'لا توجد بلاغات تطابق عوامل التصفية'
+              : 'لا توجد بلاغات لهذا النظام'}
+          body="غيّر كلمات البحث أو خيارات التصفية."
         />
       ) : (
       <section className="grid grid-cols-1 md:grid-cols-2 gap-3.5">

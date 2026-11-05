@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { RichTextEditor } from '../common/RichTextEditor'
 import { hasRichTextContent, isHttpUrl, sanitizeRichText } from '../../lib/rich-text'
+import { clearSuggestionDraft, readSuggestionDraft, saveSuggestionDraft } from '../../lib/suggestion-draft'
 import type { SavedTestSuggestion } from '../../types'
 
 export interface SuggestionFormValues {
@@ -17,6 +18,7 @@ interface SuggestionFormProps {
   busyAction: string
   onSave: (values: SuggestionFormValues, suggestionId: string | null) => Promise<string | null>
   onSend: (suggestionId: string) => Promise<boolean>
+  userId?: string
 }
 
 const emptyValues: SuggestionFormValues = {
@@ -26,15 +28,16 @@ const emptyValues: SuggestionFormValues = {
   sharedDocumentUrl: '',
 }
 
-export function SuggestionForm({ modules, savedSuggestions, busyAction, onSave, onSend }: SuggestionFormProps) {
-  const [module, setModule] = useState('')
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [sharedDocumentUrl, setSharedDocumentUrl] = useState('')
+export function SuggestionForm({ modules, savedSuggestions, busyAction, onSave, onSend, userId }: SuggestionFormProps) {
+  const [initialDraft] = useState(() => (userId ? readSuggestionDraft(userId) : null))
+  const [module, setModule] = useState(initialDraft?.values.module ?? '')
+  const [title, setTitle] = useState(initialDraft?.values.title ?? '')
+  const [description, setDescription] = useState(initialDraft?.values.description ?? '')
+  const [sharedDocumentUrl, setSharedDocumentUrl] = useState(initialDraft?.values.sharedDocumentUrl ?? '')
   const [formError, setFormError] = useState('')
-  const [savedValues, setSavedValues] = useState<SuggestionFormValues>(emptyValues)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingStatus, setEditingStatus] = useState<'draft' | 'sent'>('draft')
+  const [savedValues, setSavedValues] = useState<SuggestionFormValues>(initialDraft?.savedValues ?? emptyValues)
+  const [editingId, setEditingId] = useState<string | null>(initialDraft?.editingId ?? null)
+  const [editingStatus, setEditingStatus] = useState<'draft' | 'sent'>(initialDraft?.editingStatus ?? 'draft')
 
   const currentValues: SuggestionFormValues = {
     module,
@@ -46,6 +49,20 @@ export function SuggestionForm({ modules, savedSuggestions, busyAction, onSave, 
     const field = key as keyof SuggestionFormValues
     return currentValues[field] !== savedValues[field]
   })
+
+  useEffect(() => {
+    if (!userId) return
+    if (!isDirty) {
+      clearSuggestionDraft(userId)
+      return
+    }
+    saveSuggestionDraft(userId, {
+      values: { module, title, description, sharedDocumentUrl },
+      savedValues,
+      editingId,
+      editingStatus,
+    })
+  }, [userId, isDirty, module, title, description, sharedDocumentUrl, savedValues, editingId, editingStatus])
 
   const validate = (): SuggestionFormValues | null => {
     const safeDescription = description.trim()
@@ -169,10 +186,10 @@ export function SuggestionForm({ modules, savedSuggestions, busyAction, onSave, 
         </label>
       </div>
 
-      <label className="mt-4 block text-xs font-semibold text-slate-700">
+      <div className="mt-4 block text-xs font-semibold text-slate-700">
         الوصف
         <RichTextEditor value={description} onChange={setDescription} />
-      </label>
+      </div>
 
       <label className="mt-4 block text-xs font-semibold text-slate-700">
         رابط مستند مشترك <span className="font-normal text-slate-400">(اختياري)</span>

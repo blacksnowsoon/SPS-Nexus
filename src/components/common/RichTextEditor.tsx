@@ -87,6 +87,7 @@ export function RichTextEditor({
   placeholder = 'اكتب تفاصيل الاقتراح…',
 }: RichTextEditorProps) {
   const onChangeRef = useRef(onChange)
+  const lastValueRef = useRef(value)
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -119,7 +120,9 @@ export function RichTextEditor({
       transformPastedHTML: normalizePastedHtml,
     },
     onUpdate: ({ editor }) => {
-      onChangeRef.current(editor.getHTML())
+      const nextValue = editor.getHTML()
+      lastValueRef.current = nextValue
+      onChangeRef.current(nextValue)
     },
   })
 
@@ -151,12 +154,11 @@ export function RichTextEditor({
   })
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor || editor.isDestroyed || lastValueRef.current === value) return
 
     const nextValue = value || '<p></p>'
-    if (editor.getHTML() !== nextValue) {
-      editor.commands.setContent(nextValue, { emitUpdate: false })
-    }
+    lastValueRef.current = value
+    editor.commands.setContent(nextValue, { emitUpdate: false })
   }, [editor, value])
 
   const chain = () => editor?.chain().focus()

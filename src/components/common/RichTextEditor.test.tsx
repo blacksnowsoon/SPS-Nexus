@@ -38,6 +38,14 @@ describe('RichTextEditor', () => {
     expect(screen.getByRole('button', { name: 'محاذاة للوسط' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('updates editor content when its value changes externally', () => {
+    const { rerender } = render(<RichTextEditor value="<p>Initial</p>" onChange={vi.fn()} />)
+
+    rerender(<RichTextEditor value="<p>Updated</p>" onChange={vi.fn()} />)
+
+    expect(screen.getByRole('textbox', { name: 'وصف الاقتراح' })).toHaveTextContent('Updated')
+  })
+
   it('accepts custom accessible labels and placeholders', () => {
     render(<RichTextEditor value="" onChange={vi.fn()} ariaLabel="ملاحظات" placeholder="اكتب ملاحظاتك" />)
 

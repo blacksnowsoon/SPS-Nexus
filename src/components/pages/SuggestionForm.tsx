@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { RichTextEditor } from '../common/RichTextEditor'
 import { hasRichTextContent, isHttpUrl, sanitizeRichText } from '../../lib/rich-text'
 import { clearSuggestionDraft, readSuggestionDraft, saveSuggestionDraft } from '../../lib/suggestion-draft'
 import type { SavedTestSuggestion } from '../../types'
+
+const RichTextEditor = lazy(() =>
+  import('../common/RichTextEditor').then((module) => ({ default: module.RichTextEditor })),
+)
 
 export interface SuggestionFormValues {
   module: string
@@ -188,7 +191,18 @@ export function SuggestionForm({ modules, savedSuggestions, busyAction, onSave, 
 
       <div className="mt-4 block text-xs font-semibold text-slate-700">
         الوصف
-        <RichTextEditor value={description} onChange={setDescription} />
+        <Suspense
+          fallback={(
+            <div
+              className="mt-2 flex min-h-52 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-normal text-slate-500"
+              role="status"
+            >
+              جارٍ تحميل محرر النص…
+            </div>
+          )}
+        >
+          <RichTextEditor value={description} onChange={setDescription} />
+        </Suspense>
       </div>
 
       <label className="mt-4 block text-xs font-semibold text-slate-700">

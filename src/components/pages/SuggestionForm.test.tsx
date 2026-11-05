@@ -23,6 +23,9 @@ const paste = (target: HTMLElement, data: Record<string, string>) => {
   fireEvent(target, event)
 }
 
+const findDescriptionEditor = () =>
+  screen.findByRole('textbox', { name: 'وصف الاقتراح' }, { timeout: 20_000 })
+
 describe('SuggestionForm', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => cleanup())
@@ -30,13 +33,13 @@ describe('SuggestionForm', () => {
   it('keeps pasted description text when clicking inside the editor', async () => {
     render(<SuggestionForm modules={['المستخدمون']} savedSuggestions={[]} busyAction="" onSave={vi.fn()} onSend={vi.fn()} />)
 
-    const descriptionEditor = screen.getByRole('textbox', { name: 'وصف الاقتراح' })
+    const descriptionEditor = await findDescriptionEditor()
     paste(descriptionEditor, { 'text/html': '<p>Pasted text</p>', 'text/plain': 'Pasted text' })
     await waitFor(() => expect(descriptionEditor).toHaveTextContent('Pasted text'))
     fireEvent.click(descriptionEditor)
 
     expect(descriptionEditor).toHaveTextContent('Pasted text')
-  })
+  }, 20_000)
 
   it('restores an unsaved draft after remounting and clears it once saved and sent', async () => {
     const user = userEvent.setup()
@@ -60,7 +63,7 @@ describe('SuggestionForm', () => {
     expect(screen.getByRole('textbox', { name: 'عنوان الاقتراح' })).toHaveValue('مسودة غير محفوظة')
     expect(screen.getByRole('combobox', { name: 'الوحدة' })).toHaveValue('المستخدمون')
 
-    const descriptionEditor = screen.getByRole('textbox', { name: 'وصف الاقتراح' })
+    const descriptionEditor = await findDescriptionEditor()
     descriptionEditor.innerHTML = '<p>Description</p>'
     fireEvent.input(descriptionEditor)
     await waitFor(() => expect(localStorage.getItem(draftKey)).toContain('Description'))
@@ -86,7 +89,7 @@ describe('SuggestionForm', () => {
 
     const saveButton = screen.getByRole('button', { name: 'حفظ المسودة' })
     const sendButton = screen.getByRole('button', { name: 'إرسال الاقتراح' })
-    const descriptionEditor = screen.getByRole('textbox', { name: 'وصف الاقتراح' })
+    const descriptionEditor = await findDescriptionEditor()
     expect(saveButton).toBeDisabled()
     expect(sendButton).toBeDisabled()
     expect(descriptionEditor).toHaveClass('resize-y', 'min-h-52')
@@ -120,7 +123,7 @@ describe('SuggestionForm', () => {
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'الوحدة' }), 'المستخدمون')
     await user.type(screen.getByRole('textbox', { name: 'عنوان الاقتراح' }), 'تحسين التحقق')
-    const descriptionEditor = screen.getByRole('textbox', { name: 'وصف الاقتراح' })
+    const descriptionEditor = await findDescriptionEditor()
     descriptionEditor.innerHTML = '<p>Description</p>'
     fireEvent.input(descriptionEditor)
     await user.type(screen.getByRole('textbox', { name: /رابط مستند مشترك/ }), 'ftp://example.com/doc')
@@ -145,6 +148,7 @@ describe('SuggestionForm', () => {
     )
 
     expect(screen.getByText('تم الإرسال')).toBeInTheDocument()
+    await findDescriptionEditor()
     await user.click(screen.getByRole('button', { name: 'تعديل وإعادة الإرسال' }))
     const title = screen.getByRole('textbox', { name: 'عنوان الاقتراح' })
     await user.clear(title)

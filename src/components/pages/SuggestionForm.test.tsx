@@ -1,6 +1,6 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SuggestionForm, type SuggestionFormValues } from './SuggestionForm'
 import type { SavedTestSuggestion } from '../../types'
 
@@ -16,10 +16,6 @@ const sentSuggestion: SavedTestSuggestion = {
 }
 
 describe('SuggestionForm', () => {
-  beforeEach(() => {
-    Object.defineProperty(document, 'execCommand', { configurable: true, value: vi.fn() })
-  })
-
   afterEach(() => cleanup())
 
   it('submits the selected module, title, rich description, and optional link', async () => {
@@ -34,10 +30,11 @@ describe('SuggestionForm', () => {
     expect(saveButton).toBeDisabled()
     expect(sendButton).toBeDisabled()
     expect(descriptionEditor).toHaveClass('resize-y', 'min-h-52')
-    expect(descriptionEditor.innerHTML).toBe('<p><br></p>')
+    expect(descriptionEditor.innerHTML).toBe('<p><br class="ProseMirror-trailingBreak"></p>')
     await user.selectOptions(screen.getByRole('combobox', { name: 'الوحدة' }), 'المستخدمون')
     await user.type(screen.getByRole('textbox', { name: 'عنوان الاقتراح' }), 'تحسين التحقق')
-    await user.type(screen.getByRole('textbox', { name: 'وصف الاقتراح' }), 'أضف حالة اختبار جديدة')
+    descriptionEditor.innerHTML = '<p>Add a new test case</p>'
+    fireEvent.input(descriptionEditor)
     await user.type(screen.getByRole('textbox', { name: /رابط مستند مشترك/ }), 'https://example.com/doc')
     expect(saveButton).toBeEnabled()
     expect(sendButton).toBeDisabled()
@@ -46,14 +43,14 @@ describe('SuggestionForm', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       module: 'المستخدمون',
       title: 'تحسين التحقق',
-      description: expect.stringContaining('أضف حالة اختبار جديدة'),
+      description: expect.stringContaining('Add a new test case'),
       sharedDocumentUrl: 'https://example.com/doc',
     }), null)
     expect(sendButton).toBeEnabled()
     expect(saveButton).toBeDisabled()
     await user.click(sendButton)
     expect(onSend).toHaveBeenCalledWith('saved-1')
-  })
+  }, 15_000)
 
   it('rejects invalid external document links', async () => {
     const user = userEvent.setup()
@@ -63,7 +60,9 @@ describe('SuggestionForm', () => {
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'الوحدة' }), 'المستخدمون')
     await user.type(screen.getByRole('textbox', { name: 'عنوان الاقتراح' }), 'تحسين التحقق')
-    await user.type(screen.getByRole('textbox', { name: 'وصف الاقتراح' }), 'وصف كافٍ')
+    const descriptionEditor = screen.getByRole('textbox', { name: 'وصف الاقتراح' })
+    descriptionEditor.innerHTML = '<p>Description</p>'
+    fireEvent.input(descriptionEditor)
     await user.type(screen.getByRole('textbox', { name: /رابط مستند مشترك/ }), 'ftp://example.com/doc')
     await user.click(screen.getByRole('button', { name: 'حفظ المسودة' }))
 

@@ -141,7 +141,7 @@ export function ScenariosPage({
             }`}
             onClick={() => setActiveTab('suggestion')}
           >
-            أضف مقترح
+            أضافة مقترح
           </button>
         </div>
         {activeTab === 'details' ? (
